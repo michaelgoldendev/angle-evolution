@@ -5,6 +5,7 @@ include("ObservationNode.jl")
 include("AcceptanceLogger.jl")
 include("Utils.jl")
 include("ModelOptimization.jl")
+include("AngleUtils.jl")
 
 using Formatting
 using Distributions
@@ -886,38 +887,6 @@ function train()
   end
 end
 
-
-OBSERVED_DATA = 0
-MISSING_DATA = 1
-function masksequences(seq1::Sequence, seq2::Sequence, mask::Array{Int,1})
-  newseq1 = Sequence(seq1)
-  newseq2 = Sequence(seq2)
-  for i=1:newseq1.length
-    if mask[1] == MISSING_DATA
-      newseq1.seq[i] = 0
-    end
-    if mask[2] == MISSING_DATA
-      newseq1.phi[i] = -1000.0
-      newseq1.psi[i] = -1000.0
-      newseq1.phi_error[i] = -1000.0
-      newseq1.psi_error[i] = -1000.0
-    end
-  end
-  for i=1:newseq2.length
-    if mask[3] == MISSING_DATA
-      newseq2.seq[i] = 0
-    end
-    if mask[4] == MISSING_DATA
-      newseq2.phi[i] = -1000.0
-      newseq2.psi[i] = -1000.0
-      newseq2.phi_error[i] = -1000.0
-      newseq2.psi_error[i] = -1000.0
-    end
-  end
-
-  return newseq1, newseq2
-end
-
 function sample_missing_values(rng::AbstractRNG, obsnodes::Array{ObservationNode,1}, pairsample::SequencePairSample)
   seqpair = pairsample.seqpair
   newseq1 = Sequence(seqpair.seq1)
@@ -964,82 +933,6 @@ function sample_missing_values(rng::AbstractRNG, obsnodes::Array{ObservationNode
   end
 
   return SequencePair(0, newseq1,newseq2)
-end
-
-function angular_rmsd(theta1::Array{Float64, 1}, theta2::Array{Float64})
-  dist =0.0
-  len = 0
-  for i=1:length(theta1)
-    if theta1[i] > -100.0 && theta2[i] > -100.0
-      x0 = cos(theta1[i])
-      x1 = sin(theta1[i])
-      y0 = cos(theta2[i])
-      y1 = sin(theta2[i])
-      c = y0-x0
-      s = y1-x1
-      dist += c*c + s*s
-      len += 1
-    end
-  end
-
-  return sqrt(dist/float(len))
-end
-
-function angular_rmsd(theta1::Array{Float64, 1}, theta2::Array{Float64},  align1::Array{Int}, align2::Array{Int})
-  dist =0.0
-  len = 0
-  for (a,b) in zip(align1, align2)
-    if a > 0 && b > 0
-      if theta1[a] > -100.0 && theta2[b] > -100.0
-        x0 = cos(theta1[a])
-        x1 = sin(theta1[a])
-        y0 = cos(theta2[b])
-        y1 = sin(theta2[b])
-        c = y0-x0
-        s = y1-x1
-        dist += c*c + s*s
-        len += 1
-      end
-    end
-  end
-
-  return sqrt(dist/float(len))
-end
-
-
-
-
-
-function angular_mean(theta::Array{Float64, 1})
-  if length(theta) == 0
-    return -1000.0
-  end
-
-  c = 0.0
-  s = 0.0
-  total = float(length(theta))
-  for t in theta
-    c += cos(t)
-    s += sin(t)
-  end
-  c /= total
-  s /= total
-  rho = sqrt(c*c + s*s)
-
-  if s > 0
-    return acos(c/rho)
-  else
-    return 2*pi - acos(c / rho)
-  end
-end
-
-function pimod(angle::Float64)
-  theta = mod2pi(angle)
-  if theta > pi
-    return theta -2.0*pi
-  else
-    return theta
-  end
 end
 
 

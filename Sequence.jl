@@ -254,3 +254,34 @@ function load_sequences(datafile)
 
   return pairs
 end
+
+OBSERVED_DATA = 0
+MISSING_DATA = 1
+function masksequences(seq1::Sequence, seq2::Sequence, mask::Array{Int,1})
+  newseq1 = Sequence(seq1)
+  newseq2 = Sequence(seq2)
+  for i=1:newseq1.length
+    if mask[1] == MISSING_DATA
+      newseq1.seq[i] = 0
+    end
+    if mask[2] == MISSING_DATA
+      newseq1.phi[i] = -1000.0
+      newseq1.psi[i] = -1000.0
+      newseq1.phi_error[i] = -1000.0
+      newseq1.psi_error[i] = -1000.0
+    end
+  end
+  for i=1:newseq2.length
+    if mask[3] == MISSING_DATA
+      newseq2.seq[i] = 0
+    end
+    if mask[4] == MISSING_DATA
+      newseq2.phi[i] = -1000.0
+      newseq2.psi[i] = -1000.0
+      newseq2.phi_error[i] = -1000.0
+      newseq2.psi_error[i] = -1000.0
+    end
+  end
+
+  return newseq1, newseq2
+end
