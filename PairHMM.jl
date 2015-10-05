@@ -1,4 +1,4 @@
-include("ModelIO.jl")
+include("ModelParameters.jl")
 include("Sequence.jl")
 include("ObservationNode.jl")
 #Pkg.add("DataStructures")
@@ -157,13 +157,9 @@ function tkf92(nsamples::Int, obsnodes::Array{ObservationNode,1}, rng::AbstractR
     for i=1:len
         tkf92forward(obsnodes, seqpair, pairparams.t, cache, hmmparameters,i,i,END,1, fixAlignment, cornercut, fixStates, alignmentpath)
     end
-    #=
     for i=1:n
         tkf92forward(obsnodes, seqpair, pairparams.t, cache, hmmparameters,i,m,END,1, fixAlignment, cornercut, fixStates, alignmentpath)
     end
-    for i=1:m
-        tkf92forward(obsnodes, seqpair, pairparams.t, cache, hmmparameters,n,i,END,1, fixAlignment, cornercut, fixStates, alignmentpath)
-    end=#
   end
 
   for h=1:numHiddenStates
@@ -979,7 +975,7 @@ function mlalign()
   cornercut = 400
 
   ser = open(modelfile,"r")
-  modelio::ModelIO = deserialize(ser)
+  modelio::ModelParameters = deserialize(ser)
   close(ser)
   prior = modelio.prior
   obsnodes = modelio.obsnodes
@@ -1142,7 +1138,7 @@ function train()
   cornercut = 75
   useswitching = false
   useparallel = true
-  pairs = load_sequences("data/data.txt")
+  pairs = load_sequences("data/data.txt")[1:10]
   println("N=",length(pairs))
 
   srand(98418108751401)
@@ -1153,7 +1149,7 @@ function train()
 
   numHiddenStates = 4
 
-  loadModel = true
+  loadModel = false
   modelfile = string("models/pairhmm",numHiddenStates,".jls")
 
 
@@ -1186,7 +1182,7 @@ function train()
 
   if loadModel
     ser = open(modelfile,"r")
-    modelio::ModelIO = deserialize(ser)
+    modelio::ModelParameters = deserialize(ser)
     close(ser)
     prior = modelio.prior
     obsnodes = modelio.obsnodes
@@ -1350,13 +1346,13 @@ function train()
     flush(mlwriter)
 
 
-    modelio = ModelIO(prior, obsnodes, hmminitprobs, hmmtransprobs)
+    modelio = ModelParameters(prior, obsnodes, hmminitprobs, hmmtransprobs)
     ser = open(modelfile,"w")
     serialize(ser, modelio)
     close(ser)
 
 
-    write_hiddenstates(modelio, "hiddenstates.txt")
+    write_hiddenstates(modelio, "logs/hiddenstates.txt")
   end
 end
 
@@ -1532,7 +1528,7 @@ function test()
   cornercut = 75
 
   ser = open(modelfile,"r")
-  modelio::ModelIO = deserialize(ser)
+  modelio::ModelParameters = deserialize(ser)
   close(ser)
   prior = modelio.prior
   obsnodes = modelio.obsnodes
