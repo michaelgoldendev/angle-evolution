@@ -1,4 +1,3 @@
-
 function quickExp(v::Float64)
     if v < -57.0
         return 0.0
@@ -8,6 +7,16 @@ function quickExp(v::Float64)
 
     return exp(v)
 end
+
+function safelog(x::Float64)
+  if x < 0.0
+    println("X=",x)
+    return -Inf
+  else
+    return log(x)
+  end
+end
+
 
 function orderpair(a::Float64, b::Float64)
   if a < b
