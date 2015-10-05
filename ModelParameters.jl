@@ -29,3 +29,7 @@ function write_hiddenstates(modelio::ModelParameters, filename)
   end
   close(out)
 end
+
+function aic(ll::Float64, freeParameters::Int)
+	return 2.0*freeParameters - 2.0*ll
+end
