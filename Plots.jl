@@ -14,7 +14,13 @@ p = plot(mat, x="Year", y="Country", color="GDP", Geom.rectbin)
 draw(SVG("spy.svg", 5inch, 5inch), p)
 =#
 #Pkg.add("PyPlot")
+
+#=
 using PyPlot
 x = linspace(0,2*pi,1000); y = sin(3*x + 4*cos(2*x))
 p=plot(x, y, color="red", linewidth=2.0, linestyle="--")
 savefig("try.svg")
+=#
+data=randn(1000)
+p=plot(x=data, Geom.histogram, Coord.Cartesian(xmin=float64(-pi), xmax=float64(pi)))
+draw(SVG("hist.svg", 5inch, 5inch), p)

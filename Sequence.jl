@@ -21,7 +21,7 @@ type Sequence
     new(length, zeros(Int,length), ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA))
   end
 
-  function Sequence(seq::ASCIIString)
+  function Sequence(seq::AbstractString)
     len = length(seq)
     s = zeros(Int,len)
     for i=1:len
@@ -31,7 +31,7 @@ type Sequence
     return new(len, s, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA))
   end
 
-  function Sequence(seq::ASCIIString, phi::Array{Float64,1}, psi::Array{Float64,1})
+  function Sequence(seq::AbstractString, phi::Array{Float64,1}, psi::Array{Float64,1})
     len = length(seq)
     s = zeros(Int,len)
     for i=1:len
@@ -99,6 +99,11 @@ type SequencePairSample
     align2 = Int[]
     states = Int[]
     return new(seqpair, PairParameters(params), align1, align2, states)
+  end
+
+   function SequencePairSample(seqpair::SequencePair, align1::Array{Int,1}, align2::Array{Int,1})
+    states = Int[]
+    return new(seqpair, PairParameters(), align1, align2, states)
   end
 
   function SequencePairSample(sample::SequencePairSample)
@@ -247,6 +252,69 @@ function load_sequences(datafile)
       seqpair = SequencePair(id, Sequence(seq1,phi1,psi1), Sequence(seq2,phi2,psi2))
       id += 1
       push!(pairs, seqpair)
+    end
+    line += 1
+  end
+  close(f)
+
+  return pairs
+end
+
+function get_alignment(sequence_with_gaps::AbstractString)
+  align = Int[]
+  c = 1
+  for i=1:length(sequence_with_gaps)
+    if sequence_with_gaps[i] == '-'
+      push!(align, 0)
+    else
+      push!(align, c)
+      c += 1
+    end
+  end
+  return align
+end
+
+function load_sequences_and_alignments(datafile)
+  f = open(datafile);
+  line = 0
+  seq1 = ""
+  phi1 = Float64[]
+  psi1 = Float64[]
+  seq2 = ""
+  phi2 = Float64[]
+  psi2 = Float64[]
+  align1 = Int[]
+  align2 = Int[]
+  id = 1
+  pairs = SequencePairSample[]
+  for ln in eachline(f)
+    if ln[1] == '>'
+      line = 0
+    end
+
+    if line == 1
+      seq1 = strip(ln)
+    elseif line == 2
+      seq2 = strip(ln)
+    elseif line == 3
+      phi1 = Float64[float64(s) for s in split(ln, ",")]
+    elseif line == 4
+      psi1 = Float64[float64(s) for s in split(ln, ",")]
+    elseif line == 5
+      phi2 = Float64[float64(s) for s in split(ln, ",")]
+    elseif line == 6
+      psi2 = Float64[float64(s) for s in split(ln, ",")]
+    elseif line == 9
+      align1 = get_alignment(strip(ln))
+    elseif line == 10
+      align2 = get_alignment(strip(ln))
+    end
+
+
+    if line == 11
+      seqpair = SequencePair(id, Sequence(seq1,phi1,psi1), Sequence(seq2,phi2,psi2))
+      id += 1
+      push!(pairs, SequencePairSample(seqpair,align1,align2))
     end
     line += 1
   end

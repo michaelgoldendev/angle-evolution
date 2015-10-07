@@ -52,60 +52,6 @@ function switchll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample
   return ll
 end
 
-function switchll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample,1}, seqindices::Array{Int,1}, hindices::Array{Int,1}, obsnodes::Array{ObservationNode, 1}, store::Array{Float64, 1})
-  aapairnode_r1_eqfreqs = x[1:20]/sum(x[1:20])
-  if(!(0.999 < sum(aapairnode_r1_eqfreqs) < 1.001))
-    aapairnode_r1_eqfreqs = ones(Float64, 20)*0.05
-  end
-
-  aapairnode_r2_eqfreqs = x[21:40]/sum(x[21:40])
-  if(!(0.999 < sum(aapairnode_r2_eqfreqs) < 1.001))
-    aapairnode_r2_eqfreqs = ones(Float64, 20)*0.05
-  end
-
-  set_parameters(obsnodes[h].switching.aapairnode_r1, aapairnode_r1_eqfreqs, 1.0)
-  set_parameters(obsnodes[h].switching.aapairnode_r2, aapairnode_r2_eqfreqs, 1.0)
-
-  d1 = x[41:46]
-  set_parameters(obsnodes[h].switching.diffusion_r1, d1[1], mod2pi(d1[2]+pi)-pi, d1[3], d1[4], mod2pi(d1[5]+pi)-pi, d1[6], 1.0)
-  d2 = x[47:52]
-  set_parameters(obsnodes[h].switching.diffusion_r2, d2[1], mod2pi(d2[2]+pi)-pi, d2[3], d2[4], mod2pi(d2[5]+pi)-pi, d2[6], 1.0)
-
-  obsnodes[h].switching.alpha = x[53]
-  obsnodes[h].switching.pi_r1 = x[54]
-
-  # dirichlet prior
-  concentration_param = 1.025
-  ll = sum((concentration_param-1.0)*log(aapairnode_r1_eqfreqs))
-  ll += sum((concentration_param-1.0)*log(aapairnode_r2_eqfreqs))
-
-  for (s,a) in zip(seqindices,hindices)
-    sample = samples[s]
-    seqpair = sample.seqpair
-    align1 = sample.align1
-    align2 = sample.align2
-    i = align1[a]
-    j = align2[a]
-    t = sample.params.t
-    if i == 0
-      ll += get_data_lik_xt(obsnodes[h], seqpair.seq2,j,t)
-    elseif j == 0
-      ll += get_data_lik_x0(obsnodes[h], seqpair.seq1,i,t)
-    else
-      ll += get_data_lik(obsnodes[h], seqpair.seq1, seqpair.seq2, i, j, t)
-    end
-  end
-
-  if ll > store[1]
-    store[1] = ll
-    for i=1:54
-      store[i+1]  = x[i]
-    end
-  end
-
-  return ll
-end
-
 function switchopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
   seqindices,hindices = getindices(samples, h)
   store = ones(Float64,55)*(-1e20)
@@ -149,7 +95,7 @@ function switchopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array
   upper[54] = 1.0
   upper_bounds!(opt, upper)
   xtol_rel!(opt,1e-4)
-  maxeval!(opt, 1600)
+  maxeval!(opt, 500)
   max_objective!(opt, localObjectiveFunction)
   initial = zeros(Float64,54)
   for i=1:20
@@ -409,7 +355,7 @@ function prioropt(samples::Array{SequencePairSample,1}, prior::PriorDistribution
   opt = Opt(:LN_COBYLA, 8)
   lower_bounds!(opt, ones(Float64, 8)*1e-10)
   xtol_rel!(opt,1e-4)
-  maxeval!(opt, 2000)
+  maxeval!(opt, 800)
   max_objective!(opt, localObjectiveFunction)
   (minf,minx,ret) = optimize(opt, ones(Float64, 8))
   return PriorDistribution(minx)

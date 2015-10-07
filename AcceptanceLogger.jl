@@ -2,26 +2,26 @@ using DataStructures
 using Formatting
 
 type AcceptanceLogger
-    accepted::Accumulator{ASCIIString, Int}
-    total::Accumulator{ASCIIString, Int}
+    accepted::Accumulator{AbstractString, Int}
+    total::Accumulator{AbstractString, Int}
 
     function AcceptanceLogger()
-        return new(counter(ASCIIString),counter(ASCIIString))
+        return new(counter(AbstractString),counter(AbstractString))
     end
 end
 
-function logAccept!(logger::AcceptanceLogger, move::ASCIIString)
+function logAccept!(logger::AcceptanceLogger, move::AbstractString)
     push!(logger.accepted, move)
     push!(logger.total, move)
 end
 
-function logReject!(logger::AcceptanceLogger, move::ASCIIString)
+function logReject!(logger::AcceptanceLogger, move::AbstractString)
     push!(logger.total, move)
 end
 
 function clear!(logger::AcceptanceLogger)
-    logger.accepted = counter(ASCIIString)
-    logger.total = counter(ASCIIString)
+    logger.accepted = counter(AbstractString)
+    logger.total = counter(AbstractString)
 end
 
 function list(logger::AcceptanceLogger)

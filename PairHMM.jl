@@ -93,7 +93,7 @@ type HMMCache
 
     hintsize = -1
     if !(fixAlignment || fixStates)
-      hintsize = max(n,m)*cornercut*10
+      hintsize = max(n,m)*cornercut*5
     end
     for h=1:numHiddenStates
       d = Dict{Int,Float64}()
@@ -130,8 +130,12 @@ function uniquekey(seqpair::SequencePair, numHiddenStates::Int, i::Int, j::Int, 
   return (i)*m*9*numHiddenStates + (j)*9*numHiddenStates + (alignnode-1)*numHiddenStates + (h-1)
 end
 
-function tkf92(nsamples::Int, obsnodes::Array{ObservationNode,1}, rng::AbstractRNG, seqpair::SequencePair, pairparams::PairParameters, prior::PriorDistribution, hmminitprobs::Array{Float64, 1}, hmmtransprobs::Array{Float64,2}, cornercut::Int=10000000, fixAlignment::Bool=false, align1::Array{Int,1}=zeros(Int,1), align2::Array{Int,1}=zeros(Int,1), fixStates::Bool=false, states::Array{Int,1}=zeros(Int,1))
+function tkf92(nsamples::Int, rng::AbstractRNG, seqpair::SequencePair, pairparams::PairParameters, modelparams::ModelParameters, cornercut::Int=10000000, fixAlignment::Bool=false, align1::Array{Int,1}=zeros(Int,1), align2::Array{Int,1}=zeros(Int,1), fixStates::Bool=false, states::Array{Int,1}=zeros(Int,1))
   #println(pairparams,"\t",cornercut)
+  prior = modelparams.prior
+  obsnodes = modelparams.obsnodes
+  hmminitprobs = modelparams.hmminitprobs
+  hmmtransprobs = modelparams.hmmtransprobs
   aligntransprobs = get_alignment_transition_probabilities(pairparams.lambda,pairparams.mu,pairparams.r,pairparams.t)
 
   n = seqpair.seq1.length
@@ -160,7 +164,6 @@ function tkf92(nsamples::Int, obsnodes::Array{ObservationNode,1}, rng::AbstractR
     choice[h] = tkf92forward(obsnodes, seqpair, pairparams.t, cache, hmmparameters,n,m,END,h, fixAlignment, cornercut, fixStates, alignmentpath)
     #println(length(cache))
   end
-
   sum = logsumexp(choice)
   choice = exp(choice - sum)
 
@@ -170,11 +173,6 @@ function tkf92(nsamples::Int, obsnodes::Array{ObservationNode,1}, rng::AbstractR
     tkf92sample(obsnodes, seqpair, pairparams.t, rng,cache, hmmparameters,n,m, END, sample(rng, choice), pairsample.align1,pairsample.align2, pairsample.states, fixAlignment, cornercut, fixStates, alignmentpath)
     push!(samples, pairsample)
   end
-
-  #=
-  for h=1:numHiddenStates
-    println("size=", length(cache.caches[h]))
-  end=#
 
   ll = logprior(prior, pairparams)+sum
   #=
@@ -360,14 +358,12 @@ function tkf92forward(obsnodes::Array{ObservationNode,1}, seqpair::SequencePair,
   return sum
 end
 
-function mcmc_sequencepair(citer::Int, iter::Int, samplerate::Int, obsnodes::Array{ObservationNode, 1}, rng::AbstractRNG, initialSample::SequencePairSample, prior::PriorDistribution, hmminitprobs::Array{Float64,1}, hmmtransprobs::Array{Float64,2}, cornercut::Int=100)
+function mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::AbstractRNG, initialSample::SequencePairSample, modelparams::ModelParameters, cornercut::Int=100, fixAlignment::Bool=false, writeoutput::Bool=false, outputdir::AbstractString="")
   seqpair = initialSample.seqpair
   pairparams = initialSample.params
   current = PairParameters(pairparams)
   proposed = PairParameters(pairparams)
   current_sample = initialSample
-
-  writeoutput = false
 
   mode = "a"
   if citer == 0
@@ -375,9 +371,9 @@ function mcmc_sequencepair(citer::Int, iter::Int, samplerate::Int, obsnodes::Arr
   end
 
   if writeoutput
-    mcmcout = open(string("mcmc",fmt("04d", seqpair.id),".log"), mode)
-    alignout = open(string("align",fmt("04d", seqpair.id),".log"), mode)
-    acceptanceout = open(string("acceptance",fmt("04d", seqpair.id),".log"), mode)
+    mcmcout = open(string(outputdir, "mcmc",fmt("04d", seqpair.id),".log"), mode)
+    alignout = open(string(outputdir, "align",fmt("04d", seqpair.id),".log"), mode)
+    acceptanceout = open(string(outputdir, "acceptance",fmt("04d", seqpair.id),".log"), mode)
     if citer == 0
       write(mcmcout, string("iter","\t", "currentll", "\t", "current_lambda","\t","current_mu","\t", "current_ratio", "\t", "current_r", "\t", "current_t","\n"))
     end
@@ -386,21 +382,24 @@ function mcmc_sequencepair(citer::Int, iter::Int, samplerate::Int, obsnodes::Arr
   samples = SequencePairSample[]
 
   logger = AcceptanceLogger()
-  moveWeights = Float64[0.5, 20, 100, 100, 100, 100]
+  moveWeights = Float64[5, 40, 100, 100, 100, 100]
+  if fixAlignment
+    moveWeights[1] = 0.0 # never resample alignment
+  end
   nsamples = 1
-  currentll, current_samples = tkf92(nsamples, obsnodes, rng, seqpair, current, prior, hmminitprobs, hmmtransprobs, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
+  currentll, current_samples = tkf92(nsamples, rng, seqpair, current, modelparams, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
   current_sample = current_samples[end]
 
 
   proposedll = currentll
   logll = Float64[]
-  for i=1:iter
+  for i=1:niter
       currentiter = citer + i - 1
       move = sample(rng, moveWeights)
       if move == 1
-        currentll, current_samples = tkf92(nsamples, obsnodes, rng, seqpair, current, prior, hmminitprobs, hmmtransprobs, cornercut)
+        currentll, current_samples = tkf92(nsamples, rng, seqpair, current, modelparams, cornercut)
         current_sample = current_samples[end]
-        currentll, dummy = tkf92(0, obsnodes, rng, seqpair, current, prior, hmminitprobs, hmmtransprobs, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
+        currentll, dummy = tkf92(0, rng, seqpair, current, modelparams, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
 
         seqpair = current_sample.seqpair
         if writeoutput
@@ -416,12 +415,12 @@ function mcmc_sequencepair(citer::Int, iter::Int, samplerate::Int, obsnodes::Arr
         #println(string(join(current_sample.states, "")))
         #println(getalignment(seqpair.seq1, current_sample.align1))
         #println(getalignment(seqpair.seq1, current_sample.align2))
-        currentll, current_samples = tkf92(nsamples, obsnodes, rng, seqpair, current, prior, hmminitprobs, hmmtransprobs, cornercut, true, current_sample.align1, current_sample.align2, false, current_sample.states)
+        currentll, current_samples = tkf92(nsamples, rng, seqpair, current, modelparams, cornercut, true, current_sample.align1, current_sample.align2, false, current_sample.states)
         current_sample = current_samples[end]
         #println(string(join(current_sample.states, "")))
         #println(getalignment(seqpair.seq1, current_sample.align1))
         #println(getalignment(seqpair.seq1, current_sample.align2))
-        currentll, dummy = tkf92(0, obsnodes, rng, seqpair, current, prior, hmminitprobs, hmmtransprobs, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
+        currentll, dummy = tkf92(0, rng, seqpair, current, modelparams, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
         #println(string(join(dummy[1].states, "")))
         #println(getalignment(seqpair.seq1, dummy[1].align1))
         #println(getalignment(seqpair.seq1, dummy[1].align2))
@@ -449,7 +448,7 @@ function mcmc_sequencepair(citer::Int, iter::Int, samplerate::Int, obsnodes::Arr
 
         proposed.mu = proposed.lambda/proposed.ratio
         if(proposed.lambda > 0.0 && proposed.mu > 0.0 && proposed.lambda < proposed.mu && 0.0 < proposed.r < 1.0 && proposed.t > 0.0)
-          proposedll, proposed_samples = tkf92(nsamples, obsnodes, rng, seqpair, proposed, prior, hmminitprobs, hmmtransprobs, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
+          proposedll, proposed_samples = tkf92(nsamples, rng, seqpair, proposed, modelparams, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
 
           a = rand(rng)
           if(exp(proposedll-currentll+propratio) > a)
@@ -497,7 +496,7 @@ function mcmc_sequencepair(citer::Int, iter::Int, samplerate::Int, obsnodes::Arr
 
   expll = logsumexp(logll+log(1/float64(length(logll))))
 
-  return citer+iter, current, samples, expll
+  return citer+niter, current, samples, expll
 end
 
 function mlalignmentopt(seqpair::SequencePair, obsnodes::Array{ObservationNode,1}, prior::PriorDistribution, hmminitprobs::Array{Float64,1}, hmmtransprobs::Array{Float64,2}, cornercut::Int)
@@ -515,7 +514,7 @@ function mlalignmentopt(seqpair::SequencePair, obsnodes::Array{ObservationNode,1
   println(getalignment(seqpair.seq1, align1))
   println(getalignment(seqpair.seq2, align2))
 
-  localObjectiveFunction = ((param, grad) -> tkf92(100, obsnodes, MersenneTwister(330101840810391), seqpair, PairParameters(param), prior, hmminitprobs, hmmtransprobs, cornercut, fixAlignment, align1, align2)[1])
+  localObjectiveFunction = ((param, grad) -> tkf92(100, MersenneTwister(330101840810391), seqpair, PairParameters(param), modelparams, cornercut, fixAlignment, align1, align2)[1])
   opt = Opt(:LN_COBYLA, 4)
   lower_bounds!(opt, ones(Float64, 4)*1e-10)
 
@@ -541,12 +540,12 @@ function mlalign()
   cornercut = 400
 
   ser = open(modelfile,"r")
-  modelio::ModelParameters = deserialize(ser)
+  modelparams::ModelParameters = deserialize(ser)
   close(ser)
-  prior = modelio.prior
-  obsnodes = modelio.obsnodes
-  hmminitprobs = modelio.hmminitprobs
-  hmmtransprobs = modelio.hmmtransprobs
+  prior = modelparams.prior
+  obsnodes = modelparams.obsnodes
+  hmminitprobs = modelparams.hmminitprobs
+  hmmtransprobs = modelparams.hmmtransprobs
   numHiddenStates = length(hmminitprobs)
 
   println("use_switching", obsnodes[1].useswitching)
@@ -578,24 +577,28 @@ end
 
 
 function train()
-  maxiters = 10000
-  cornercutinit = 25
-  cornercut = 75
-  useswitching = false
-  useparallel = true
-  pairs = load_sequences("data/data.txt")[1:10]
-  println("N=",length(pairs))
-
   srand(98418108751401)
   rng = MersenneTwister(242402531025555)
 
+  maxiters = 10000
+  cornercutinit = 15
+  cornercut = 75
+  useswitching = false
+  useparallel = true
+  pairs = shuffle!(rng, load_sequences("data/data.txt"))[1:60]
+  println("N=",length(pairs))
+
   mcmciter = 30
-  samplerate = 5
+  samplerate = 10
 
-  numHiddenStates = 4
+  numHiddenStates = 16
 
-  loadModel = false
-  modelfile = string("models/pairhmm",numHiddenStates,".jls")
+  loadModel = true
+  if useswitching
+    modelfile = string("models/pairhmm",numHiddenStates,"_switching.jls")
+  else
+    modelfile = string("models/pairhmm",numHiddenStates,"_noswitching.jls")
+  end
 
 
 
@@ -627,12 +630,12 @@ function train()
 
   if loadModel
     ser = open(modelfile,"r")
-    modelio::ModelParameters = deserialize(ser)
+    modelparams::ModelParameters = deserialize(ser)
     close(ser)
-    prior = modelio.prior
-    obsnodes = modelio.obsnodes
-    hmminitprobs = modelio.hmminitprobs
-    hmmtransprobs = modelio.hmmtransprobs
+    prior = modelparams.prior
+    obsnodes = modelparams.obsnodes
+    hmminitprobs = modelparams.hmminitprobs
+    hmmtransprobs = modelparams.hmmtransprobs
     numHiddenStates = length(hmminitprobs)
   end
 
@@ -643,7 +646,7 @@ function train()
     refs = RemoteRef[]
     for k=1:length(pairs)
       println(pairs[k].id)
-      ref = @spawn tkf92(1, ObservationNode[ObservationNode(obsnode) for obsnode in obsnodes], MersenneTwister(abs(rand(Int))), pairs[k], PairParameters(), prior, hmminitprobs, hmmtransprobs, cornercutinit)
+      ref = @spawn tkf92(1, MersenneTwister(abs(rand(Int))), pairs[k], PairParameters(), modelparams, cornercutinit)
       push!(refs,ref)
     end
     for ref in refs
@@ -653,7 +656,7 @@ function train()
   else
     for pair in pairs
       println(pair.id)
-      push!(current_samples, tkf92(1, obsnodes, rng, pair, PairParameters(), prior, hmminitprobs, hmmtransprobs, cornercutinit)[2][1])
+      push!(current_samples, tkf92(1, rng, pair, PairParameters(), modelparams, cornercutinit)[2][1])
     end
   end
   toc()
@@ -677,7 +680,7 @@ function train()
       refs = RemoteRef[]
       for k=1:length(pairs)
         println("K=",k)
-        ref = @spawn mcmc_sequencepair(currentiter, mcmciter, samplerate, ObservationNode[ObservationNode(obsnode) for obsnode in obsnodes], MersenneTwister(abs(rand(Int))), SequencePairSample(current_samples[k]), prior, hmminitprobs, hmmtransprobs, cornercut)
+        ref = @spawn mcmc_sequencepair(currentiter, mcmciter, samplerate, MersenneTwister(abs(rand(Int))), SequencePairSample(current_samples[k]), modelparams, cornercut)
         push!(refs,ref)
       end
       for k=1:length(pairs)
@@ -711,7 +714,7 @@ function train()
       =#
     else
       for k=1:length(pairs)
-        it, newparams, ksamples, expll = mcmc_sequencepair(currentiter, mcmciter, samplerate, ObservationNode[ObservationNode(obsnode) for obsnode in obsnodes],  MersenneTwister(abs(rand(Int))), current_samples[k], prior, hmminitprobs, hmmtransprobs, cornercut)
+        it, newparams, ksamples, expll = mcmc_sequencepair(currentiter, mcmciter, samplerate,  MersenneTwister(abs(rand(Int))), current_samples[k], modelparams, cornercut)
         current_samples[k] = ksamples[end]
         push!(samplell, expll)
         push!(obscount, pairs[k].seq1.length + pairs[k].seq2.length)
@@ -731,6 +734,7 @@ function train()
         refs = RemoteRef[]
         #refs2 = RemoteRef[]
       for h=1:numHiddenStates
+        println("M=",h)
         ref = @spawn  switchopt(h, samples,obsnodes)
         push!(refs, ref)
       end
@@ -789,13 +793,13 @@ function train()
     flush(mlwriter)
 
 
-    modelio = ModelParameters(prior, obsnodes, hmminitprobs, hmmtransprobs)
+    modelparams = ModelParameters(prior, obsnodes, hmminitprobs, hmmtransprobs)
     ser = open(modelfile,"w")
-    serialize(ser, modelio)
+    serialize(ser, modelparams)
     close(ser)
 
 
-    write_hiddenstates(modelio, "logs/hiddenstates.txt")
+    write_hiddenstates(modelparams, "logs/hiddenstates.txt")
   end
 end
 
@@ -847,42 +851,68 @@ function sample_missing_values(rng::AbstractRNG, obsnodes::Array{ObservationNode
   return SequencePair(0, newseq1,newseq2)
 end
 
+function bin2d(phi::Array{Float64, 1}, psi::Array{Float64, 1})
+  nbins = 20
+  for (a,b) in zip(phi,psi)
+    c = int((a / float(pi))*nbins)
+    d = int((b / float(pi))*nbins)
+    println(c,"\t",d)
+  end
+end
 
-
+using Gadfly
+using Compose
 function test()
-  pairs = load_sequences("data/holdout_data.txt")
+  #pairs = load_sequences_and_alignments("data/data.txt")
+  pairs = load_sequences_and_alignments("data/holdout_data.txt")
 
   srand(98418108751401)
   rng = MersenneTwister(242402531025555)
-  modelfile = "models/pairhmm16.jls"
+  #modelfile = "models/pairhmm4_switching.jls"
+  #modelfile = "models/pairhmm8_noswitching.jls"
+  #modelfile = "models/pairhmm12_noswitching.jls"
+  modelfile = "models/pairhmm4_noswitching.jls"
 
+  modelfile = "models/pairhmm4_noswitching.jls"
+  outputdir = "logs/pairhmm4_noswitching/"
+
+  fixAlignment = false
   cornercut = 75
 
   ser = open(modelfile,"r")
-  modelio::ModelParameters = deserialize(ser)
+  modelparams::ModelParameters = deserialize(ser)
   close(ser)
-  prior = modelio.prior
-  obsnodes = modelio.obsnodes
-  hmminitprobs = modelio.hmminitprobs
-  hmmtransprobs = modelio.hmmtransprobs
+  prior = modelparams.prior
+  obsnodes = modelparams.obsnodes
+  hmminitprobs = modelparams.hmminitprobs
+  hmmtransprobs = modelparams.hmmtransprobs
   numHiddenStates = length(hmminitprobs)
 
   println("use_switching", obsnodes[1].useswitching)
   println("H=", numHiddenStates)
 
+  mkpath(outputdir)
+  outfile = open(string(outputdir, "benchmarks",numHiddenStates,".txt"), "w")
+  write(outfile, "mask\tphi_homologue\tpsi_homologue\tphi_predicted\tpsi_predicted\n")
+
   mask = Int[OBSERVED_DATA, OBSERVED_DATA, OBSERVED_DATA, MISSING_DATA]
   for k=1:length(pairs)
-    input = pairs[k]
-    #input = SequencePair(k,pairs[k].seq1, pairs[k+1].seq2)
+    inputalign1 = pairs[k].align1
+    inputalign2 = pairs[k].align2
+    input = pairs[k].seqpair
     seq1, seq2 = masksequences(input.seq1, input.seq2, mask)
     masked = SequencePair(0,seq1, seq2)
-    current_sample = tkf92(1, obsnodes, rng, masked, PairParameters(), prior, hmminitprobs, hmmtransprobs, cornercut)[2][1]
-    ret = mcmc_sequencepair(0, 4000, 5, obsnodes, rng, current_sample, prior, hmminitprobs, hmmtransprobs, cornercut)
+    current_sample = tkf92(1, rng, masked, PairParameters(), modelparams, cornercut, fixAlignment, inputalign1, inputalign2)[2][1]
+    current_sample.seqpair.id = k
+    ret = mcmc_sequencepair(0, 2000, 1, rng, current_sample, modelparams, cornercut, fixAlignment, true, outputdir)
 
     samples = ret[3]
     nsamples = length(ret[3])
     samples = samples[max(1,nsamples/2):end]
     filled_pairs = [sample_missing_values(rng, obsnodes, sample) for sample in samples]
+
+    mpdalign1, mpdalign2, posterior_probs = mpdalignment(samples)
+
 
     phi = Float64[]
     psi = Float64[]
@@ -896,20 +926,53 @@ function test()
         if seqpair.seq2.psi[i] > -100.0
           push!(psi_i, seqpair.seq2.psi[i])
         end
+
       end
+
+      conf1, conf2 = getconfigurations(mpdalign1, mpdalign2)
 
       push!(phi, angular_mean(phi_i))
       push!(psi, angular_mean(psi_i))
+      if input.seq2.phi[i] > -100.0 && input.seq2.psi[i] > -100.0
+        xvals = Float64[]
+        yvals = Float64[]
+        labels = AbstractString[]
+
+        push!(xvals, pimod(angular_mean(phi_i)))
+        push!(yvals, pimod(angular_mean(psi_i)))
+        push!(labels, "P")
+        if conf2[i] > 0
+          push!(xvals, input.seq1.phi[conf2[i]])
+          push!(yvals, input.seq1.psi[conf2[i]])
+          push!(labels, "A")
+        end
+        push!(xvals, input.seq2.phi[i])
+        push!(yvals, input.seq2.psi[i])
+        push!(labels, "B")
+
+
+        outputdir2  = string(outputdir,"structure_",k,"/")
+        mkpath(outputdir2)
+        p = plot(layer(x=xvals, y=yvals, label=labels, Geom.label), layer(x=xvals, y=yvals, Geom.point), layer(x=phi_i, y=psi_i, Geom.histogram2d(xbincount=30, ybincount=30)), Coord.Cartesian(xmin=float64(-pi), xmax=float64(pi), ymin=float64(-pi), ymax=float64(pi)))
+        draw(SVG(string(outputdir2,"hist",i,".svg"), 5inch, 5inch), p)
+      end
     end
 
 
-    align1, align2, posterior_probs = mpdalignment(samples)
-    println(getalignment(input.seq1, align1))
-    println(getalignment(input.seq2, align2))
-    #=for (a,b,c,d) in zip(input.seq2.phi, phi, input.seq2.psi, psi)
-      println(a,"\t", pimod(b), "\t", c, "\t", pimod(d))
+    align1 = inputalign1
+    align2 = inputalign2
+
+    #=
+    sumphi = Float64[]
+    sumpsi = Float64[]
+    for sample in filled_pairs
+      push!(sumphi, angular_rmsd(sample.seq2.phi, phi))
+      push!(sumpsi, angular_rmsd(sample.seq2.psi, psi))
     end
+    println("TTT", sqrt(sum(sumphi .^ 2.0)/length(sumphi)),"\t", sqrt(sum(sumpsi .^ 2.0)/length(sumpsi)))
     =#
+
+
 
     for (a,b) in zip(align2, align1)
       if a > 0 && b > 0
@@ -919,12 +982,16 @@ function test()
 
     println("Homologue:\tphi=", angular_rmsd(input.seq2.phi, input.seq1.phi, align2, align1),"\tpsi=", angular_rmsd(input.seq2.psi, input.seq1.psi, align2, align1))
     println("Predicted:\tpsi=", angular_rmsd(input.seq2.phi, phi), "\tpsi=", angular_rmsd(input.seq2.psi, psi))
+    write(outfile, join(mask, ""), "\t", string(angular_rmsd(input.seq2.phi, input.seq1.phi, align2, align1)), "\t", string(angular_rmsd(input.seq2.psi, input.seq1.psi, align2, align1)), "\t")
+    write(outfile, string(angular_rmsd(input.seq2.phi, phi)), "\t", string(angular_rmsd(input.seq2.psi, psi),"\n"))
+    flush(outfile)
   end
+  close(outfile)
 end
 
 #mlalign()
-#test()
-train()
+test()
+#train()
 
 
 
