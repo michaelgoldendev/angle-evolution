@@ -26,7 +26,7 @@ end
 
 function list(logger::AcceptanceLogger)
     logkeys = sort([k for k in keys(logger.total)])
-    ret = String[]
+    ret = AbstractString[]
     for k in logkeys
         ratio = fmt(".4f", logger.accepted[k]/logger.total[k])
         total = logger.total[k]

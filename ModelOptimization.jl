@@ -1,3 +1,5 @@
+using NLopt
+
 function switchll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample,1}, seqindices::Array{Int,1}, hindices::Array{Int,1}, obsnodes::Array{ObservationNode, 1}, store::Array{Float64, 1})
   aapairnode_r1_eqfreqs = x[1:20]/sum(x[1:20])
   if(!(0.999 < sum(aapairnode_r1_eqfreqs) < 1.001))
@@ -243,7 +245,7 @@ function aapairopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array
   lower_bounds!(opt, zeros(Float64, 20))
   upper_bounds!(opt, ones(Float64, 20))
   xtol_rel!(opt,1e-4)
-  maxeval!(opt, 100)
+  maxeval!(opt, 200)
   max_objective!(opt, localObjectiveFunction)
   (minf,minx,ret) = optimize(opt, obsnodes[h].aapairnode.eqfreqs)
   set_parameters(obsnodes[h].aapairnode, minx/sum(minx), 1.0)

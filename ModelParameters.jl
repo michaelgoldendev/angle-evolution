@@ -12,6 +12,13 @@ type ModelParameters
   end
 end
 
+function readmodel(modelfile)
+    ser = open(modelfile,"r")
+    modelparams::ModelParameters = deserialize(ser)
+    close(ser)
+    return modelparams
+end
+
 function write_hiddenstates(modelio::ModelParameters, filename)
   out = open(filename, "w")
   if modelio.obsnodes[1].useswitching

@@ -93,7 +93,7 @@ function load_parameters(node::AAPairNode, parameter_file)
   for i=1:20
    spl = split(lines[i])
    for j=1:length(spl)
-     S[i+1,j] = float64(spl[j])
+     S[i+1,j] = parse(Float64, spl[j])
      S[j,i+1] = S[i+1,j]
    end
   end
@@ -109,7 +109,7 @@ function load_parameters(node::AAPairNode, parameter_file)
   eqfreqs = zeros(Float64,20)
   spl = split(lines[21])
   for i=1:20
-    eqfreqs[i] = float64(spl[i])
+    eqfreqs[i] = parse(Float64, spl[i])
   end
 
   set_parameters(node, eqfreqs, S, 1.0)

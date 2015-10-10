@@ -239,13 +239,13 @@ function load_sequences(datafile)
     elseif line == 2
       seq2 = strip(ln)
     elseif line == 3
-      phi1 = Float64[float64(s) for s in split(ln, ",")]
+      phi1 = Float64[parse(Float64, s) for s in split(ln, ",")]
     elseif line == 4
-      psi1 = Float64[float64(s) for s in split(ln, ",")]
+      psi1 = Float64[parse(Float64, s) for s in split(ln, ",")]
     elseif line == 5
-      phi2 = Float64[float64(s) for s in split(ln, ",")]
+      phi2 = Float64[parse(Float64, s) for s in split(ln, ",")]
     elseif line == 6
-      psi2 = Float64[float64(s) for s in split(ln, ",")]
+      psi2 = Float64[parse(Float64, s) for s in split(ln, ",")]
     end
 
     if line == 7
@@ -297,13 +297,13 @@ function load_sequences_and_alignments(datafile)
     elseif line == 2
       seq2 = strip(ln)
     elseif line == 3
-      phi1 = Float64[float64(s) for s in split(ln, ",")]
+      phi1 = Float64[parse(Float64, s) for s in split(ln, ",")]
     elseif line == 4
-      psi1 = Float64[float64(s) for s in split(ln, ",")]
+      psi1 = Float64[parse(Float64, s) for s in split(ln, ",")]
     elseif line == 5
-      phi2 = Float64[float64(s) for s in split(ln, ",")]
+      phi2 = Float64[parse(Float64, s) for s in split(ln, ",")]
     elseif line == 6
-      psi2 = Float64[float64(s) for s in split(ln, ",")]
+      psi2 = Float64[parse(Float64, s) for s in split(ln, ",")]
     elseif line == 9
       align1 = get_alignment(strip(ln))
     elseif line == 10
