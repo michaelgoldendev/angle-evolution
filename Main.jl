@@ -1,7 +1,17 @@
 #mlalign()
 #test()
 
-addprocs(CPU_CORES)
+using ProfileView
+
+#addprocs(CPU_CORES)
+#@everywhere include("PairHMM.jl")
+#@profile train()
+#ProfileView.svgwrite("profile_results.svg")
+#profilewriter = open("profile.log", "w")
+#Profile.print(profilewriter)
+
+
+
 #include("PairHMM.jl")
-@everywhere include("PairHMM.jl")
-train()
+#test()
+#train()

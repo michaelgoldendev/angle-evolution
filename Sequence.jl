@@ -52,6 +52,10 @@ type SequencePair
   seq2::Sequence
   t::Float64
 
+  function SequencePair()
+    new(0,Sequence(),Sequence(),1.0)
+  end
+
   function SequencePair(id::Int, seq1::Sequence, seq2::Sequence)
     return new(id, seq1, seq2, 1.0)
   end
@@ -93,21 +97,29 @@ type SequencePairSample
   align1::Array{Int,1}
   align2::Array{Int,1}
   states::Array{Int,1}
+  aligned::Bool
+
+  function SequencePairSample()
+     align1 = Int[]
+    align2 = Int[]
+    states = Int[]
+    return new(SequencePair(), PairParameters(params), align1, align2, states, false)
+  end
 
   function SequencePairSample(seqpair::SequencePair, params::PairParameters)
     align1 = Int[]
     align2 = Int[]
     states = Int[]
-    return new(seqpair, PairParameters(params), align1, align2, states)
+    return new(seqpair, PairParameters(params), align1, align2, states, false)
   end
 
    function SequencePairSample(seqpair::SequencePair, align1::Array{Int,1}, align2::Array{Int,1})
     states = Int[]
-    return new(seqpair, PairParameters(), align1, align2, states)
+    return new(seqpair, PairParameters(), align1, align2, states, false)
   end
 
   function SequencePairSample(sample::SequencePairSample)
-    return new(SequencePair(sample.seqpair), PairParameters(sample.params), copy(sample.align1), copy(sample.align2), copy(sample.states))
+    return new(SequencePair(sample.seqpair), PairParameters(sample.params), copy(sample.align1), copy(sample.align2), copy(sample.states), sample.aligned)
   end
 end
 
@@ -287,6 +299,7 @@ function load_sequences_and_alignments(datafile)
   align2 = Int[]
   id = 1
   pairs = SequencePairSample[]
+  aligned=false
   for ln in eachline(f)
     if ln[1] == '>'
       line = 0
@@ -306,15 +319,19 @@ function load_sequences_and_alignments(datafile)
       psi2 = Float64[parse(Float64, s) for s in split(ln, ",")]
     elseif line == 9
       align1 = get_alignment(strip(ln))
+      aligned = true
     elseif line == 10
       align2 = get_alignment(strip(ln))
+      aligned = true
     end
 
 
     if line == 11
       seqpair = SequencePair(id, Sequence(seq1,phi1,psi1), Sequence(seq2,phi2,psi2))
       id += 1
-      push!(pairs, SequencePairSample(seqpair,align1,align2))
+      sample = SequencePairSample(seqpair,align1,align2)
+      sample.aligned = aligned
+      push!(pairs, sample)
     end
     line += 1
   end
