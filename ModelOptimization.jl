@@ -1,5 +1,6 @@
 using NLopt
 
+freqprior = Beta(1.5, 1.5)
 function switchll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample,1}, seqindices::Array{Int,1}, hindices::Array{Int,1}, obsnodes::Array{ObservationNode, 1}, store::Array{Float64, 1})
   aapairnode_r1_eqfreqs = x[1:20]/sum(x[1:20])
   if(!(0.999 < sum(aapairnode_r1_eqfreqs) < 1.001))
@@ -26,6 +27,7 @@ function switchll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample
   concentration_param = 1.025
   ll = sum((concentration_param-1.0)*log(aapairnode_r1_eqfreqs))
   ll += sum((concentration_param-1.0)*log(aapairnode_r2_eqfreqs))
+  ll += logpdf(freqprior, obsnodes[h].switching.pi_r1)
 
   for (s,a) in zip(seqindices,hindices)
     sample = samples[s]
@@ -254,7 +256,7 @@ end
 
 function diffusionll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample,1}, seqindices::Array{Int,1}, hindices::Array{Int,1}, obsnodes::Array{ObservationNode, 1}, store::Array{Float64, 1})
   #println("XX", x)
-  set_parameters(obsnodes[h].diffusion, x[1], mod2pi(x[2]+pi)-pi, x[3], x[4], mod2pi(x[5]+pi)-pi, x[6], 1.0)
+  set_parameters(obsnodes[h].diffusion, x[1], mod2pi(x[2]+pi)-pi, x[3], x[4], mod2pi(x[5]+pi)-pi, x[6], 1.0, x[7])
 
   ll = 0.0
 
@@ -277,7 +279,7 @@ function diffusionll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSam
   end
   if ll > store[1]
     store[1] = ll
-    for i=1:6
+    for i=1:7
       store[i+1]  = x[i]
     end
   end
@@ -287,34 +289,36 @@ end
 
 function diffusionopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
   seqindices,hindices = getindices(samples, h)
-  store = ones(Float64,7)*(-1e20)
+  store = ones(Float64,8)*(-1e20)
   localObjectiveFunction = ((param, grad) -> diffusionll(param, h, samples,seqindices,hindices, obsnodes, store))
-  opt = Opt(:LN_COBYLA, 6)
-  lower = zeros(Float64, 6)
+  opt = Opt(:LN_COBYLA, 7)
+  lower = zeros(Float64, 7)
   lower[1] = 1e-5
   lower[2] = -1000000.0
   lower[3] = 1e-5
   lower[4] = 1e-5
   lower[5] = -1000000.0
   lower[6] = 1e-5
+  lower[7] = 1e-5
   lower_bounds!(opt, lower)
 
-  upper = ones(Float64, 6)
+  upper = ones(Float64, 7)
   upper[1] = 1e5
   upper[2] = 1000000.0
   upper[3] = 1e5
   upper[4] = 1e5
   upper[5] = 1000000.0
   upper[6] = 1e5
+  upper[7] = 1e5
   upper_bounds!(opt, upper)
   xtol_rel!(opt,1e-4)
   maxeval!(opt, 100)
   max_objective!(opt, localObjectiveFunction)
   (minf,minx,ret) = optimize(opt, get_parameters(obsnodes[h].diffusion))
-  optx = store[2:7]
+  optx = store[2:8]
   #println(optx)
 
-  set_parameters(obsnodes[h].diffusion, optx[1], mod2pi(optx[2]+pi)-pi, optx[3], optx[4], mod2pi(optx[5]+pi)-pi, optx[6], 1.0)
+  set_parameters(obsnodes[h].diffusion, optx[1], mod2pi(optx[2]+pi)-pi, optx[3], optx[4], mod2pi(optx[5]+pi)-pi, optx[6], 1.0, optx[7])
 
   return optx
 end

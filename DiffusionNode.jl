@@ -13,26 +13,28 @@ type DiffusionNode
   mu_psi::Float64
   sigma_psi::Float64
 
+
   t::Float64
+  branch_scale::Float64
 
   function DiffusionNode()
     vm_phi = VonMisesDensity()
     vm_psi = VonMisesDensity()
     vm_phi_stat = VonMisesDensity()
     vm_psi_stat = VonMisesDensity()
-    new(vm_phi, vm_psi, vm_phi_stat, vm_psi_stat, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
+    new(vm_phi, vm_psi, vm_phi_stat, vm_psi_stat, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
   end
 
   function DiffusionNode(node::DiffusionNode)
-    new(VonMisesDensity(node.vm_phi), VonMisesDensity(node.vm_psi), VonMisesDensity(node.vm_phi_stat), VonMisesDensity(node.vm_psi_stat), node.alpha_phi, node.mu_phi, node.sigma_phi, node.alpha_psi, node.mu_psi, node.sigma_psi)
+    new(VonMisesDensity(node.vm_phi), VonMisesDensity(node.vm_psi), VonMisesDensity(node.vm_phi_stat), VonMisesDensity(node.vm_psi_stat), node.alpha_phi, node.mu_phi, node.sigma_phi, node.alpha_psi, node.mu_psi, node.sigma_psi, node.t, node.branch_scale)
   end
 end
 
 function get_parameters(node::DiffusionNode)
-  return Float64[node.alpha_phi, node.mu_phi, node.sigma_phi, node.alpha_psi, node.mu_psi, node.sigma_psi]
+  return Float64[node.alpha_phi, node.mu_phi, node.sigma_phi, node.alpha_psi, node.mu_psi, node.sigma_psi, node.branch_scale]
 end
 
-function set_parameters(node::DiffusionNode, alpha_phi::Float64, mu_phi::Float64, sigma_phi::Float64, alpha_psi::Float64, mu_psi::Float64, sigma_psi::Float64, t::Float64)
+function set_parameters(node::DiffusionNode, alpha_phi::Float64, mu_phi::Float64, sigma_phi::Float64, alpha_psi::Float64, mu_psi::Float64, sigma_psi::Float64, t::Float64, branch_scale::Float64=1.0)
   node.alpha_phi = alpha_phi
   node.mu_phi = mu_phi
   node.sigma_phi = sigma_phi
@@ -40,6 +42,7 @@ function set_parameters(node::DiffusionNode, alpha_phi::Float64, mu_phi::Float64
   node.mu_psi = mu_psi
   node.sigma_psi = sigma_psi
   node.t = t
+  node.branch_scale = branch_scale
   set_parameters(node.vm_phi_stat, node.mu_phi, min(700.0, 2.0*node.alpha_phi/(node.sigma_phi*node.sigma_phi)))
   set_parameters(node.vm_psi_stat, node.mu_psi, min(700.0, 2.0*node.alpha_psi/(node.sigma_psi*node.sigma_psi)))
 end
@@ -64,7 +67,8 @@ function get_data_lik(node::DiffusionNode, phi_x0::Float64, psi_x0::Float64)
   return get_data_lik_phi(node, phi_x0) + get_data_lik_psi(node, psi_x0)
 end
 
-function get_data_lik(node::DiffusionNode, phi_x0::Float64, psi_x0::Float64, phi_xt::Float64, psi_xt::Float64, t::Float64)
+function get_data_lik(node::DiffusionNode, phi_x0::Float64, psi_x0::Float64, phi_xt::Float64, psi_xt::Float64, t2::Float64)
+  t = t2*node.branch_scale
   mut_phi::Float64 = node.mu_phi + 2.0*atan(tan((phi_x0-node.mu_phi)/2.0)*exp(-node.alpha_phi*t))
 	kt_phi::Float64  = (2.0*node.alpha_phi)/(node.sigma_phi*node.sigma_phi*(1.0-exp(-2.0*node.alpha_phi*t)))
   phi_ll = 0.0
@@ -82,7 +86,8 @@ function get_data_lik(node::DiffusionNode, phi_x0::Float64, psi_x0::Float64, phi
   return phi_ll + psi_ll
 end
 
-function sample_phi_psi(node::DiffusionNode, rng::AbstractRNG, phi_x0::Float64, phi_xt::Float64, psi_x0::Float64, psi_xt::Float64, t::Float64)
+function sample_phi_psi(node::DiffusionNode, rng::AbstractRNG, phi_x0::Float64, phi_xt::Float64, psi_x0::Float64, psi_xt::Float64, t2::Float64)
+  t = t2*node.branch_scale
   phi = sample(rng, node.alpha_phi, node.mu_phi, node.sigma_phi, phi_x0, phi_xt, t)
   psi = sample(rng, node.alpha_psi, node.mu_psi, node.sigma_psi, psi_x0, psi_xt, t)
 

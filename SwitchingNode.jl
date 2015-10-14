@@ -84,7 +84,8 @@ function sample(rng::AbstractRNG, node::SwitchingNode, x0::Int, xt::Int, phi_x0:
   wt = exp(-node.alpha*t)
   pi_r1 = node.pi_r1
   pi_r2 = 1.0-pi_r1
-  c = sample(rng, [pi_r1*pi_r2*wt, pi_r1*(1.0-pi_r2*wt), pi_r2*(1.0-pi_r1*wt), pi_r1*pi_r2*wt])
+  v = [pi_r1*pi_r2*wt, pi_r1*(1.0-pi_r2*wt), pi_r2*(1.0-pi_r1*wt), pi_r1*pi_r2*wt]
+  c = sample(rng, v)
 
   if c == 1
     a,b = sample(node.aapairnode_r1, rng, x0, xt, t)

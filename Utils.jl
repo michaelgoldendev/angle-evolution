@@ -83,3 +83,20 @@ function sample(rng::AbstractRNG, v::Array{Float64}, s::Float64)
 
     return n
 end
+
+function GumbelSample(rng::AbstractRNG, v::Array{Float64})
+    n = length(v)
+    index = 1
+    max = v[1] -log(-log(rand(rng)))
+    for i=2:n
+      if v[i] != -Inf
+        y = v[i] -log(-log(rand(rng)))
+        if y > max
+          max = y
+          index = i
+        end
+      end
+    end
+
+    return index
+end
