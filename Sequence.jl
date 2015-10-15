@@ -230,48 +230,6 @@ function logprior(prior::PriorDistribution, samples::Array{SequencePairSample,1}
   return ll
 end
 
-function load_sequences(datafile)
-  f = open(datafile);
-  line = 0
-  seq1 = ""
-  phi1 = Float64[]
-  psi1 = Float64[]
-  seq2 = ""
-  phi2 = Float64[]
-  psi2 = Float64[]
-  id = 1
-  pairs = SequencePair[]
-  for ln in eachline(f)
-    if ln[1] == '>'
-      line = 0
-    end
-
-    if line == 1
-      seq1 = strip(ln)
-    elseif line == 2
-      seq2 = strip(ln)
-    elseif line == 3
-      phi1 = Float64[parse(Float64, s) for s in split(ln, ",")]
-    elseif line == 4
-      psi1 = Float64[parse(Float64, s) for s in split(ln, ",")]
-    elseif line == 5
-      phi2 = Float64[parse(Float64, s) for s in split(ln, ",")]
-    elseif line == 6
-      psi2 = Float64[parse(Float64, s) for s in split(ln, ",")]
-    end
-
-    if line == 7
-      seqpair = SequencePair(id, Sequence(seq1,phi1,psi1), Sequence(seq2,phi2,psi2))
-      id += 1
-      push!(pairs, seqpair)
-    end
-    line += 1
-  end
-  close(f)
-
-  return pairs
-end
-
 function get_alignment(sequence_with_gaps::AbstractString)
   align = Int[]
   c = 1

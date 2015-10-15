@@ -1,5 +1,17 @@
 using Gadfly
 using Compose
+
+
+
+function bin2d(phi::Array{Float64, 1}, psi::Array{Float64, 1})
+  nbins = 20
+  for (a,b) in zip(phi,psi)
+    c = int((a / float(pi))*nbins)
+    d = int((b / float(pi))*nbins)
+    println(c,"\t",d)
+  end
+end
+
 #=using RDatasets
 
 

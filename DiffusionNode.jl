@@ -42,7 +42,8 @@ function set_parameters(node::DiffusionNode, alpha_phi::Float64, mu_phi::Float64
   node.mu_psi = mu_psi
   node.sigma_psi = sigma_psi
   node.t = t
-  node.branch_scale = branch_scale
+  #node.branch_scale = branch_scale
+  node.branch_scale = 1.0
   set_parameters(node.vm_phi_stat, node.mu_phi, min(700.0, 2.0*node.alpha_phi/(node.sigma_phi*node.sigma_phi)))
   set_parameters(node.vm_psi_stat, node.mu_psi, min(700.0, 2.0*node.alpha_psi/(node.sigma_psi*node.sigma_psi)))
 end
