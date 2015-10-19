@@ -12,7 +12,7 @@ function mpdalignment(samples::Array{SequencePairSample,1})
       counts[a+1,b+1] += 1.0
     end
   end
-  counts /= float64(nsamples)
+  counts /= Float64(nsamples)
   logprobs = log(counts)
 
   cache = Dict{Int,Any}()

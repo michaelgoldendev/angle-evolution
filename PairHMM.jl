@@ -413,6 +413,49 @@ function tkf92forward(obsnodes::Array{ObservationNode,1}, seqpair::SequencePair,
   return sum
 end
 
+function gibbssampling(rng::AbstractRNG, current::SequencePairSample, modelparams::ModelParameters)
+  obsnodes = modelparams.obsnodes
+  numHiddenStates = modelparams.numHiddenStates
+  hmminitprobs = modelparams.hmminitprobs
+  hmmtransprobs = modelparams.hmmtransprobs
+  seqpair = current.seqpair
+  t = current.params.t
+  len = length(current.align1)
+  align1 = current.align1
+  align2 = current.align2
+  choice = zeros(Float64, numHiddenStates)
+  #println("A",current.states)
+  for a=1:len
+    i = align1[a]
+    j = align2[a]
+    datalik = -Inf
+    for h=1:numHiddenStates
+      if i > 0 && j > 0
+        datalik = get_data_lik(obsnodes[h], seqpair.seq1, seqpair.seq2, i,j, t)
+      elseif i > 0
+        datalik = get_data_lik_x0(obsnodes[h], seqpair.seq1, i, t)
+      elseif j >0
+        datalik = get_data_lik_xt(obsnodes[h], seqpair.seq2, j, t)
+      end
+      transloglik = 0.0
+      if a == 1
+        transloglik += log(hmminitprobs[h])
+      else
+        prevh = current.states[a-1]
+        transloglik += log(hmmtransprobs[prevh,h])
+      end
+      if a != len
+        nexth = current.states[a+1]
+        transloglik += log(hmmtransprobs[h,nexth])
+      end
+      choice[h] = datalik+transloglik
+    end
+    current.states[a] = GumbelSample(rng, choice)
+  end
+  #println("B",current.states)
+  return current
+end
+
 function mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::AbstractRNG, initialSample::SequencePairSample, modelparams::ModelParameters, cornercut::Int=100, fixAlignment::Bool=false, writeoutput::Bool=false, outputdir::AbstractString="")
   burnin = niter / 2
   seqpair = initialSample.seqpair
@@ -420,8 +463,6 @@ function mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::Abstrac
   current = PairParameters(pairparams)
   proposed = PairParameters(pairparams)
   current_sample = initialSample
-
-  #simplemodelparams = readmodel("models/pairhmm4.jls")
 
   mode = "a"
   if citer == 0
@@ -492,64 +533,47 @@ function mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::Abstrac
       end
       currentll, dummy = tkf92(0, rng, seqpair, current, modelparams, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
       logAccept!(logger, "partialalignment")
-
-      #=
-          dummyll, simple_samples = tkf92(1, rng, seqpair, current, simplemodelparams, cornercut)
-          simple_sample = simple_samples[1]
-
-          beforell, dummy = tkf92(0, rng, seqpair, current, simplemodelparams, cornercut, true, current_sample.align1, current_sample.align2)
-          afterll, dummy = tkf92(0, rng, seqpair, current, simplemodelparams, cornercut, true, simple_sample.align1, simple_sample.align2)
-          complexll, dummy = tkf92(0, rng, seqpair, current, modelparams, cornercut, true, current_sample.align1, current_sample.align2)
-          proposedll, dummy = tkf92(1, rng, seqpair, current, modelparams, cornercut, true, simple_sample.align1, simple_sample.align2)
-          newsample = dummy[1]
-          ll = (proposedll-complexll)+(beforell-afterll)
-
-          a = rand(rng)
-          println("A", beforell,"\t", afterll, "\t", complexll, "\t", proposedll, "\t", ll, "\t", exp(ll))
-          seqpair = current_sample.seqpair
-          #println(getalignment(seqpair.seq1, simple_sample.align1))
-          #println(getalignment(seqpair.seq2, simple_sample.align2))
-          #println(getalignment(seqpair.seq1, current_sample.align1))
-          #println(getalignment(seqpair.seq2, current_sample.align2))
-
-          movename = "gibbs_alignment"
-          if exp(ll) > a
-            current_sample = newsample
-            currentll, dummy = tkf92(0, rng, seqpair, current, modelparams, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
-            logAccept!(logger, movename)
-          else
-            logReject!(logger, movename)
-          end
-          =#
-
     elseif move >= 4
+      current_sample = gibbssampling(rng, current_sample, modelparams)
+      currentll, dummy = tkf92(0, rng, seqpair, current, modelparams, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
       movename = ""
       propratio = 0.0
       if move == 4
-        proposed.lambda = current.lambda + randn(rng)*0.2
+        sigma = 0.2
+        d1 = Truncated(Normal(current.lambda, sigma), 0.0, Inf)
+        proposed.lambda = rand(d1)
+        d2 = Truncated(Normal(proposed.lambda, sigma), 0.0, Inf)
+        propratio = logpdf(d2, current.lambda) - logpdf(d1, proposed.lambda)
         movename = "lambda"
       elseif move == 5
-        proposed.ratio = current.ratio + randn(rng)*0.05
+        sigma = 0.15
+        d1 = Truncated(Normal(current.ratio, sigma), 0.0, 1.0)
+        proposed.ratio = rand(d1)
+        d2 = Truncated(Normal(proposed.ratio, sigma), 0.0, 1.0)
+        propratio = logpdf(d2, current.ratio) - logpdf(d1, proposed.ratio)
         movename = "ratio"
       elseif move == 6
-        proposed.r = current.r + randn(rng)*0.06
+        sigma = 0.1
+        d1 = Truncated(Normal(current.r, sigma), 0.0, 1.0)
+        proposed.r = rand(d1)
+        d2 = Truncated(Normal(proposed.r, sigma), 0.0, 1.0)
+        propratio = logpdf(d2, current.r) - logpdf(d1, proposed.r)
         movename = "r"
       elseif move == 7
-        sigma = 0.01
-        movename = "t0.01"
-        if rand(rng) < 0.30
+        sigma = 0.02
+        movename = "t0.02"
+        if rand(rng) < 0.70
           sigma = 0.1
           movename = "t0.1"
         end
         d1 = Truncated(Normal(current.t, sigma), 0.0, Inf)
-        d2 = Truncated(Normal(proposed.t, sigma), 0.0, Inf)
         proposed.t = rand(d1)
+        d2 = Truncated(Normal(proposed.t, sigma), 0.0, Inf)
         propratio = logpdf(d2, current.t) - logpdf(d1, proposed.t)
-
       end
 
       proposed.mu = proposed.lambda/proposed.ratio
-      if(proposed.lambda > 0.0 && proposed.mu > 0.0 && proposed.lambda < proposed.mu && 0.0 < proposed.r < 1.0 && proposed.t > 0.0)
+      if(proposed.lambda > 0.0 && proposed.mu > 0.0 && proposed.lambda < proposed.mu && 0.0001 < proposed.ratio < 1.0 && 0.0 < proposed.r < 1.0 && proposed.t > 0.0)
         proposedll, proposed_samples = tkf92(nsamples, rng, seqpair, proposed, modelparams, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
 
         a = rand(rng)
@@ -672,6 +696,7 @@ function mlalignment(seqpair::SequencePair, modelparams::ModelParameters, corner
 end
 
 function train()
+  starttime = now()
 
   srand(98418108751401)
   rng = MersenneTwister(242402531025555)
@@ -685,7 +710,7 @@ function train()
   fixInputAlignments = false
 
   #inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data.txt"))
-  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse.txt"))[1:30]
+  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse.txt"))
   pairs = SequencePair[sample.seqpair for sample in inputsamples]
 
   println("N=",length(pairs))
@@ -694,7 +719,7 @@ function train()
   mcmciter = 100
   samplerate = 20
 
-  numHiddenStates = 4
+  numHiddenStates = 8
 
   freeParameters = 6*numHiddenStates + (numHiddenStates-1) + (numHiddenStates*numHiddenStates - numHiddenStates) + numHiddenStates*19
   if useswitching
@@ -795,7 +820,7 @@ function train()
   println("Initialised")
 
   mlwriter = open(string("logs/ml",numHiddenStates,".log"), "w")
-  write(mlwriter, "iter\tll\tcount\tavgll\tnumFreeParameters\tAIC\tlambda_shape\tlambda_scale\tmu_shape\tmu_scale\tr_alpha\tr_beta\tt_shape\tt_scale\n")
+  write(mlwriter, "iter\tll\tcount\tavgll\tnumFreeParameters\tAIC\tlambda_shape\tlambda_scale\tmu_shape\tmu_scale\tr_alpha\tr_beta\tt_shape\tt_scale\ttime_per_iter\n")
 
 
   currentiter = 0
@@ -921,7 +946,9 @@ function train()
     println("M-step time = ", mstep_elapsed)
 
 
-    write(mlwriter, string(i-1,"\t",sum(samplell), "\t", sum(obscount), "\t", sum(samplell)/sum(obscount),"\t", freeParameters,"\t", aic(sum(samplell), freeParameters), "\t", join(prior.params,"\t"), "\n"))
+
+    currenttime = now()
+    write(mlwriter, string(i-1,"\t",sum(samplell), "\t", sum(obscount), "\t", sum(samplell)/sum(obscount),"\t", freeParameters,"\t", aic(sum(samplell), freeParameters), "\t", join(prior.params,"\t"), "\t", Float64(currenttime-starttime)/Float64(i*1000), "\n"))
     flush(mlwriter)
 
 
@@ -929,10 +956,6 @@ function train()
     ser = open(modelfile,"w")
     serialize(ser, modelparams)
     close(ser)
-
-    for h=1:numHiddenStates
-      println("H=",h,modelparams.obsnodes[h].ss)
-    end
 
 
     write_hiddenstates(modelparams, "logs/hiddenstates.txt")
@@ -997,8 +1020,8 @@ using Compose
 using Cairo
 function test()
   #pairs = load_sequences_and_alignments("data/data.txt")
-  #pairs = load_sequences_and_alignments("data/holdout_data.txt")
-  pairs = load_sequences_and_alignments("data/glob.txt")
+  pairs = load_sequences_and_alignments("data/holdout_data.txt")
+  #pairs = load_sequences_and_alignments("data/glob.txt")
 
   srand(98418108751401)
   rng = MersenneTwister(242402531025555)
@@ -1007,8 +1030,8 @@ function test()
   #modelfile = "models/pairhmm12_noswitching.jls"
   #modelfile = "models/pairhmm8_noswitching.jls"
 
-  modelfile = "models/pairhmm6_noswitching_n60.jls"
-  outputdir = "logs/pairhmm6_noswitching_n60/"
+  modelfile = "models/pairhmm8_noswitching_n75.jls"
+  outputdir = "logs/pairhmm8_noswitching_n75/"
 
   fixAlignment = false
   cornercut = 75
@@ -1041,7 +1064,7 @@ function test()
     current_sample = tkf92(1, rng, masked, PairParameters(), modelparams, cornercut, true, inputalign1, inputalign2)[2][1]
     current_sample.seqpair.id = k
     #mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::AbstractRNG, initialSample::SequencePairSample, modelparams::ModelParameters, cornercut::Int=100, fixAlignment::Bool=false, writeoutput::Bool=false, outputdir::AbstractString="")
-    ret = mcmc_sequencepair(0, 2000, 1, rng, current_sample, modelparams, cornercut, fixAlignment, true, outputdir)
+    ret = mcmc_sequencepair(0, 2500, 1, rng, current_sample, modelparams, cornercut, fixAlignment, true, outputdir)
 
     samples = ret[3]
     nsamples = length(ret[3])
