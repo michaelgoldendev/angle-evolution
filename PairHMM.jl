@@ -21,7 +21,7 @@ using Distributions
   =#
 
 
-
+#=
 START = 1
 MATCH = 2
 XINSERT = 3
@@ -31,36 +31,40 @@ N1 = 6
 N2 = 7
 N3 = 8
 N4 = 9
+=#
+START = 1
+MATCH = 2
+XINSERT = 3
+YINSERT = 4
+END = 5
 
 function get_alignment_transition_probabilities(lambda::Float64, mu::Float64, r::Float64, t::Float64)
   Bt = (1.0 - exp((lambda-mu)*t))/(mu - lambda*exp((lambda-mu)*t))
 
   expmut = exp(-mu*t)
-  aligntransprobs = zeros(Float64, 9, 9)
-  aligntransprobs[START,N1] = 1.0
+  aligntransprobs = zeros(Float64, 5, 5)
+  aligntransprobs[START,YINSERT] = lambda*Bt
+  aligntransprobs[START,END] = (1.0 - lambda*Bt)*(1.0 - (lambda/mu))
+  aligntransprobs[START,MATCH] = (1.0 - lambda*Bt)*((lambda/mu)*expmut)
+  aligntransprobs[START,XINSERT] = (1.0 - lambda*Bt)*((lambda/mu)*(1.0 - expmut))
 
-  aligntransprobs[MATCH,MATCH] = r
-  aligntransprobs[MATCH,N1] = 1.0-r
+  aligntransprobs[MATCH,MATCH] = r + (1.0-r)*(1.0 - lambda*Bt)*((lambda/mu)*expmut)
+  aligntransprobs[MATCH,YINSERT] = (1.0-r)*lambda*Bt
+  aligntransprobs[MATCH,END] = (1.0-r)*(1.0 - lambda*Bt)*(1.0 - (lambda/mu))
+  aligntransprobs[MATCH,XINSERT] = (1.0-r)*(1.0 - lambda*Bt)*((lambda/mu)*(1.0 - expmut))
 
-  aligntransprobs[XINSERT,XINSERT] = r
-  aligntransprobs[XINSERT,N3] = 1.0-r
+  aligntransprobs[XINSERT,XINSERT] = r + (1.0-r)*((mu*Bt)/(1.0-expmut))*((lambda/mu)*(1.0 - expmut))
+  aligntransprobs[XINSERT,YINSERT] = (1.0-r)*((1.0 - mu*Bt - expmut)/(1.0-expmut))
+  aligntransprobs[XINSERT,END] = (1.0-r)*((mu*Bt)/(1.0-expmut))*(1.0 - (lambda/mu))
+  aligntransprobs[XINSERT,MATCH] = (1.0-r)*((mu*Bt)/(1.0-expmut))*((lambda/mu)*expmut)
 
   aligntransprobs[YINSERT,YINSERT] = r + (1.0-r)*(lambda*Bt)
-  aligntransprobs[YINSERT,N2] = (1.0-r)*(1.0-lambda*Bt)
+  aligntransprobs[YINSERT,END] = (1.0-r)*(1.0-lambda*Bt)*(1.0 - (lambda/mu))
+  aligntransprobs[YINSERT,MATCH] = (1.0-r)*(1.0-lambda*Bt)*((lambda/mu)*expmut)
+  aligntransprobs[YINSERT,XINSERT] = (1.0-r)*(1.0-lambda*Bt)*((lambda/mu)*(1.0 - expmut))
 
   aligntransprobs[END,END] = 0.0
 
-  aligntransprobs[N1,YINSERT] =  lambda*Bt
-  aligntransprobs[N1,N2] = 1.0 - lambda*Bt
-
-  aligntransprobs[N2,END] = 1.0 - (lambda/mu)
-  aligntransprobs[N2,N4] = lambda/mu
-
-  aligntransprobs[N3,YINSERT] = (1.0 - mu*Bt - expmut)/(1.0-expmut)
-  aligntransprobs[N3,N2] = (mu*Bt)/(1.0-expmut)
-
-  aligntransprobs[N4,MATCH] = expmut
-  aligntransprobs[N4,XINSERT] = 1.0 - expmut
   return aligntransprobs
 end
 
@@ -354,7 +358,7 @@ function tkf92forward(obsnodes::Array{ObservationNode,1}, seqpair::SequencePair,
       end
     end
 
-    for prevalignnode=1:9
+    for prevalignnode=1:5
       if hmmparameters.aligntransprobs[prevalignnode, alignnode] > 0.0
         if fixStates && fixAlignment && i > 1 && j > 1
           prevh = 0
@@ -397,7 +401,7 @@ function tkf92forward(obsnodes::Array{ObservationNode,1}, seqpair::SequencePair,
       end
     end
   else
-    for prevalignnode=1:9
+    for prevalignnode=1:5
       if hmmparameters.aligntransprobs[prevalignnode, alignnode] > 0.0
         prevlik =  tkf92forward(obsnodes, seqpair, t, cache, hmmparameters, i, j, prevalignnode, h, fixAlignment, cornercut, fixStates, alignmentpath, starti, endi, startj, endj)
         sum = logsumexp(sum, prevlik+hmmparameters.logaligntransprobs[prevalignnode, alignnode])
@@ -459,8 +463,8 @@ function mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::Abstrac
       if writeoutput
         write(alignout, string(currentiter), "\n")
         write(alignout, string(join(current_sample.states, ""),"\n"))
-        write(alignout, getalignment(seqpair.seq1, current_sample.align1),"\n")
-        write(alignout, getalignment(seqpair.seq2, current_sample.align2),"\n\n")
+        write(alignout, getaminoacidalignment(seqpair.seq1, current_sample.align1),"\n")
+        write(alignout, getaminoacidalignment(seqpair.seq2, current_sample.align2),"\n\n")
         flush(alignout)
       end
       logAccept!(logger, "fullalignment")
@@ -475,14 +479,16 @@ function mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::Abstrac
       if writeoutput
         println("I=", i)
         println(">>>>>>")
-        println(getalignment(seqpair.seq1, current_sample.align1))
-        println(getalignment(seqpair.seq2, current_sample.align2))
+        println(getaminoacidalignment(seqpair.seq1, current_sample.align1))
+        println(getaminoacidalignment(seqpair.seq2, current_sample.align2))
+        println(getssalignment(seqpair.seq1, current_sample.align1))
+        println(getssalignment(seqpair.seq2, current_sample.align2))
       end
       currentll, current_samples = tkf92(nsamples, rng, seqpair, current, modelparams, cornercut, true, current_sample.align1, current_sample.align2, false, current_sample.states, true)
       current_sample = current_samples[end]
       if writeoutput
-        println(getalignment(seqpair.seq1, current_sample.align1))
-        println(getalignment(seqpair.seq2, current_sample.align2))
+        println(getaminoacidalignment(seqpair.seq1, current_sample.align1))
+        println(getaminoacidalignment(seqpair.seq2, current_sample.align2))
       end
       currentll, dummy = tkf92(0, rng, seqpair, current, modelparams, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
       logAccept!(logger, "partialalignment")
@@ -650,8 +656,8 @@ function mlalign()
   seq1, seq2 = masksequences(pairs[1].seq1, pairs[1].seq2, mask)
   seqpair = SequencePair(0,seq1, seq2)
   ll, mlsample = mlalignment(seqpair, modelparams, cornercut)
-  println(getalignment(seqpair.seq1, mlsample.align1))
-  println(getalignment(seqpair.seq2, mlsample.align2))
+  println(getaminoacidalignment(seqpair.seq1, mlsample.align1))
+  println(getaminoacidalignment(seqpair.seq2, mlsample.align2))
   println(mlsample.states)
 end
 
@@ -659,8 +665,8 @@ function mlalignment(seqpair::SequencePair, modelparams::ModelParameters, corner
   mlparams = mlalignmentopt(seqpair, modelparams, cornercut, initialParams, 3)
   ll, mlsample = tkf92(0, MersenneTwister(242402531025555), seqpair, mlparams, modelparams, cornercut, false, zeros(Int,1), zeros(Int,1),false,zeros(Int,1),false,false)
   mlsample.params = mlparams
-  println(getalignment(seqpair.seq1, mlsample.align1))
-  println(getalignment(seqpair.seq2, mlsample.align2))
+  println(getaminoacidalignment(seqpair.seq1, mlsample.align1))
+  println(getaminoacidalignment(seqpair.seq2, mlsample.align2))
   println(mlsample.states)
   return ll, mlsample
 end
@@ -673,12 +679,13 @@ function train()
   maxiters = 100000
   cornercutinit = 10
   cornercut = 75
+  usesecondarystructure = false
   useswitching = false
   useparallel = true
   fixInputAlignments = false
 
   #inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data.txt"))
-  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse.txt"))[1:60]
+  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse.txt"))[1:30]
   pairs = SequencePair[sample.seqpair for sample in inputsamples]
 
   println("N=",length(pairs))
@@ -687,7 +694,7 @@ function train()
   mcmciter = 100
   samplerate = 20
 
-  numHiddenStates = 6
+  numHiddenStates = 4
 
   freeParameters = 6*numHiddenStates + (numHiddenStates-1) + (numHiddenStates*numHiddenStates - numHiddenStates) + numHiddenStates*19
   if useswitching
@@ -709,8 +716,7 @@ function train()
   obsnodes = ObservationNode[]
   for h=1:numHiddenStates
     push!(obsnodes, ObservationNode())
-    v = rand(Float64,20)
-    v /= sum(v)
+    obsnodes[h].usesecondarystructure = usesecondarystructure
     obsnodes[h].useswitching = useswitching
     if useswitching
       v = rand(Float64,20)
@@ -724,8 +730,13 @@ function train()
       obsnodes[h].switching.alpha = 5.0 + 20.0*rand(rng)
       obsnodes[h].switching.pi_r1 = rand(rng)
     else
+      v = rand(Float64,20)
+      v /= sum(v)
       set_parameters(obsnodes[h].aapairnode, v, 1.0)
       set_parameters(obsnodes[h].diffusion, 0.1, rand()*2.0*pi - pi, 1.0, 0.1, rand()*2.0*pi - pi, 1.0, 1.0, 1.0)
+      v = rand(Float64,3)
+      v /= sum(v)
+      set_parameters(obsnodes[h].ss, v, 1.0)
     end
   end
 
@@ -867,24 +878,33 @@ function train()
           set_parameters(obsnodes[h].aapairnode, params[1], 1.0)
           dopt = params[2]
           set_parameters(obsnodes[h].diffusion, dopt[1], mod2pi(dopt[2]+pi)-pi, dopt[3], dopt[4], mod2pi(dopt[5]+pi)-pi, dopt[6], 1.0, dopt[7])
-          sopt = params[3]
-          ssfreqs = sopt[1:3]
-          ssfreqs /= sum(ssfreqs)
-          set_parameters(obsnodes[h].ss, ssfreqs, 1.0)
+          if usesecondarystructure
+            sopt = params[3]
+            ssfreqs = sopt[1:3]
+            ssfreqs /= sum(ssfreqs)
+            set_parameters(obsnodes[h].ss, ssfreqs, 1.0)
+          end
         end
-        ssoptall(samples, obsnodes)
+        if usesecondarystructure
+          ssoptall(samples, obsnodes)
+        end
       else
         for h=1:numHiddenStates
           params = mlopt(h, samples,deepcopy(obsnodes))
           set_parameters(obsnodes[h].aapairnode, params[1], 1.0)
           dopt = params[2]
           set_parameters(obsnodes[h].diffusion, dopt[1], mod2pi(dopt[2]+pi)-pi, dopt[3], dopt[4], mod2pi(dopt[5]+pi)-pi, dopt[6], 1.0, dopt[7])
-          sopt = params[3]
-          ssfreqs = sopt[1:3]
-          ssfreqs /= sum(ssfreqs)
-          set_parameters(obsnodes[h].ss, ssfreqs, 1.0)
+          if usesecondarystructure
+            sopt = params[3]
+            ssfreqs = sopt[1:3]
+            ssfreqs /= sum(ssfreqs)
+            set_parameters(obsnodes[h].ss, ssfreqs, 1.0)
+          end
         end
-        ssoptall(samples, obsnodes)
+        if usesecondarystructure
+          ssoptall(samples, obsnodes)
+        end
+
       end
     end
 
@@ -977,7 +997,8 @@ using Compose
 using Cairo
 function test()
   #pairs = load_sequences_and_alignments("data/data.txt")
-  pairs = load_sequences_and_alignments("data/holdout_data.txt")
+  #pairs = load_sequences_and_alignments("data/holdout_data.txt")
+  pairs = load_sequences_and_alignments("data/glob.txt")
 
   srand(98418108751401)
   rng = MersenneTwister(242402531025555)
@@ -986,8 +1007,8 @@ function test()
   #modelfile = "models/pairhmm12_noswitching.jls"
   #modelfile = "models/pairhmm8_noswitching.jls"
 
-  modelfile = "models/pairhmm8_switching_n128.jls"
-  outputdir = "logs/pairhmm8_switching_n128/"
+  modelfile = "models/pairhmm6_noswitching_n60.jls"
+  outputdir = "logs/pairhmm6_noswitching_n60/"
 
   fixAlignment = false
   cornercut = 75

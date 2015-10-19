@@ -4,6 +4,7 @@ include("VonMisesDensity.jl")
 
 aminoacids = "ACDEFGHIKLMNPQRSTVWY"
 sschars = "HBEGITSC"
+sscharsshort = "HSC"
 ssmap = Int[1,2,2,1,1,3,3,3] # 1=helix, 2=sheet, 3=coil
 
 MISSING_ANGLE = -1000.0
@@ -19,10 +20,11 @@ type Sequence
   psi_error::Array{Float64, 1}
   angle_error_kappa::Float64
   error_distribution::VonMisesDensity
+  inputss::Array{Int,1}
   ss::Array{Int,1}
 
   function Sequence(length::Int)
-    new(length, zeros(Int,length), ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA),zeros(Int,length))
+    new(length, zeros(Int,length), ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA),zeros(Int,length),zeros(Int,length))
   end
 
   function Sequence(seq::AbstractString)
@@ -32,7 +34,7 @@ type Sequence
       s[i] = search(aminoacids, seq[i])
     end
 
-    return new(len, s, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA),zeros(Int,len))
+    return new(len, s, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA),zeros(Int,len),zeros(Int,len))
   end
 
   function Sequence(seq::AbstractString, phi::Array{Float64,1}, psi::Array{Float64,1})
@@ -42,7 +44,7 @@ type Sequence
       s[i] = search(aminoacids, seq[i])
     end
 
-    return new(len, s, phi, psi, copy(phi), copy(psi), ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA), zeros(Int,len))
+    return new(len, s, phi, psi, copy(phi), copy(psi), ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA), zeros(Int,len),zeros(Int,len))
   end
 
   function Sequence(seq::AbstractString, phi::Array{Float64,1}, psi::Array{Float64,1}, ss::AbstractString)
@@ -53,16 +55,18 @@ type Sequence
     end
 
     len2 = length(ss)
+    inputss =  zeros(Int,len2)
     ssint = zeros(Int,len2)
     for i=1:len2
+      inputss[i] = search(sschars, ss[i])
       ssint[i] = ssmap[search(sschars, ss[i])]
     end
 
-    return new(len, s, phi, psi, copy(phi), copy(psi), ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA), ssint)
+    return new(len, s, phi, psi, copy(phi), copy(psi), ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA), inputss, ssint)
   end
 
   function Sequence(sequence::Sequence)
-    return new(sequence.length, copy(sequence.seq), copy(sequence.phi), copy(sequence.psi), copy(sequence.phi_error), copy(sequence.psi_error), sequence.angle_error_kappa, VonMisesDensity(0.0, sequence.angle_error_kappa), copy(sequence.ss))
+    return new(sequence.length, copy(sequence.seq), copy(sequence.phi), copy(sequence.psi), copy(sequence.phi_error), copy(sequence.psi_error), sequence.angle_error_kappa, VonMisesDensity(0.0, sequence.angle_error_kappa), copy(sequence.inputss), copy(sequence.ss))
   end
 end
 
@@ -202,12 +206,27 @@ function getsequencestates(align1::Array{Int,1}, align2::Array{Int,1}, states::A
   return states1, states2
 end
 
-function getalignment(seq1::Sequence, align1::Array{Int,1})
+function getaminoacidalignment(seq1::Sequence, align1::Array{Int,1})
   s1 = ""
   index = 1
   for i=1:length(align1)
     if align1[i] > 0
       s1 = string(s1, aminoacids[seq1.seq[index]])
+      index += 1
+    else
+       s1 = string(s1, "-")
+    end
+  end
+
+  return s1
+end
+
+function getssalignment(seq1::Sequence, align1::Array{Int,1})
+  s1 = ""
+  index = 1
+  for i=1:length(align1)
+    if align1[i] > 0
+      s1 = string(s1, sschars[seq1.inputss[index]])
       index += 1
     else
        s1 = string(s1, "-")

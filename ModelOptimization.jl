@@ -245,7 +245,6 @@ function ssll_all(a::Float64, b::Float64, c::Float64, samples::Array{SequencePai
   end
 
   ll = 0.0
-
   for sample in samples
     seqpair = sample.seqpair
     align1 = sample.align1
@@ -273,7 +272,7 @@ function ssoptall(samples::Array{SequencePairSample,1}, obsnodes::Array{Observat
   opt = Opt(:LN_COBYLA, 3)
   lower = ones(Float64, 3)*1e-5
   lower_bounds!(opt, lower)
-  upper = ones(Float64, 3)*200
+  upper = ones(Float64, 3)*200.0
   upper_bounds!(opt, upper)
   xtol_rel!(opt,1e-4)
   maxeval!(opt, 200)
@@ -424,7 +423,10 @@ end
 function mlopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
  aares = aapairopt(h, samples,obsnodes)
  diffusionres = diffusionopt(h, samples, obsnodes)
- ssres =  ssopt(h, samples, obsnodes)
+ ssres = Float64[]
+ if obsnodes[h].usesecondarystructure
+   ssres =  ssopt(h, samples, obsnodes)
+  end
  return aares, diffusionres, ssres
 end
 
