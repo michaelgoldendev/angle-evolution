@@ -188,6 +188,104 @@ function switchoptswitchingparams(h::Int, samples::Array{SequencePairSample,1}, 
   return minx
 end
 
+function ssll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample,1}, seqindices::Array{Int,1}, hindices::Array{Int,1}, obsnodes::Array{ObservationNode, 1})
+  infreqs = x[1:3]
+  neweqfreqs = infreqs/sum(infreqs)
+  if(!(0.999 < sum(neweqfreqs) < 1.001))
+    neweqfreqs = ones(Float64, 3)*0.05
+  end
+
+  set_parameters(obsnodes[h].ss, neweqfreqs,1.0)
+
+  # dirichlet prior
+  concentration_param = 1.025
+  ll = sum((concentration_param-1.0)*log(neweqfreqs))
+
+  for (s,a) in zip(seqindices,hindices)
+    sample = samples[s]
+    seqpair = sample.seqpair
+    align1 = sample.align1
+    align2 = sample.align2
+    i = align1[a]
+    j = align2[a]
+    t = sample.params.t
+    if i == 0
+      ll += get_data_lik(obsnodes[h], seqpair.seq2,j,3)
+    elseif j == 0
+      ll += get_data_lik(obsnodes[h], seqpair.seq1,i,3)
+    else
+      ll += get_data_lik(obsnodes[h], seqpair.seq1, seqpair.seq2, i, j, t,3)
+    end
+  end
+
+  return ll
+end
+
+function ssopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
+  seqindices,hindices = getindices(samples, h)
+  localObjectiveFunction = ((param, grad) -> ssll(param, h, samples, seqindices ,hindices, obsnodes))
+  opt = Opt(:LN_COBYLA, 3)
+  lower = ones(Float64, 3)*1e-8
+  lower_bounds!(opt, lower)
+  upper = ones(Float64, 3)
+  upper_bounds!(opt, upper)
+  xtol_rel!(opt,1e-4)
+  maxeval!(opt, 200)
+  max_objective!(opt, localObjectiveFunction)
+  (minf,minx,ret) = optimize(opt, Float64[obsnodes[h].ss.ctmc.eqfreqs[1], obsnodes[h].ss.ctmc.eqfreqs[2], obsnodes[h].ss.ctmc.eqfreqs[3]])
+  outfreqs = minx[1:3]
+
+  set_parameters(obsnodes[h].ss, outfreqs/sum(outfreqs), 1.0)
+  return minx
+end
+
+function ssll_all(a::Float64, b::Float64, c::Float64, samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
+  for obsnode in obsnodes
+      set_parameters(obsnode.ss, a, b, c, 1.0)
+  end
+
+  ll = 0.0
+
+  for sample in samples
+    seqpair = sample.seqpair
+    align1 = sample.align1
+    align2 = sample.align2
+    t = sample.params.t
+    for a=1:length(align1)
+      i = align1[a]
+      j = align2[a]
+      h = sample.states[a]
+      if i == 0
+        ll += get_data_lik(obsnodes[h], seqpair.seq2,j,3)
+      elseif j == 0
+        ll += get_data_lik(obsnodes[h], seqpair.seq1,i,3)
+      else
+        ll += get_data_lik(obsnodes[h], seqpair.seq1, seqpair.seq2, i, j, t,3)
+      end
+    end
+  end
+
+  return ll
+end
+
+function ssoptall(samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
+  localObjectiveFunction = ((param, grad) -> ssll_all(param[1], param[2], param[3], samples, obsnodes))
+  opt = Opt(:LN_COBYLA, 3)
+  lower = ones(Float64, 3)*1e-5
+  lower_bounds!(opt, lower)
+  upper = ones(Float64, 3)*200
+  upper_bounds!(opt, upper)
+  xtol_rel!(opt,1e-4)
+  maxeval!(opt, 200)
+  max_objective!(opt, localObjectiveFunction)
+  (minf,minx,ret) = optimize(opt, Float64[obsnodes[1].ss.ctmc.S[1,2], obsnodes[1].ss.ctmc.S[1,3], obsnodes[1].ss.ctmc.S[2,3]])
+
+  for obsnode in obsnodes
+      set_parameters(obsnode.ss, minx[1], minx[2], minx[3], 1.0)
+  end
+  return minx
+end
+
 
 function aapairll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample,1}, seqindices::Array{Int,1}, hindices::Array{Int,1}, obsnodes::Array{ObservationNode, 1})
   neweqfreqs = x/sum(x)
@@ -312,21 +410,22 @@ function diffusionopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Ar
   upper[7] = 1e5
   upper_bounds!(opt, upper)
   xtol_rel!(opt,1e-4)
-  maxeval!(opt, 100)
+  maxeval!(opt, 200)
   max_objective!(opt, localObjectiveFunction)
   (minf,minx,ret) = optimize(opt, get_parameters(obsnodes[h].diffusion))
   optx = store[2:8]
-  #println(optx)
 
   set_parameters(obsnodes[h].diffusion, optx[1], mod2pi(optx[2]+pi)-pi, optx[3], optx[4], mod2pi(optx[5]+pi)-pi, optx[6], 1.0, optx[7])
 
   return optx
 end
 
+
 function mlopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
  aares = aapairopt(h, samples,obsnodes)
  diffusionres = diffusionopt(h, samples, obsnodes)
- return aares, diffusionres
+ ssres =  ssopt(h, samples, obsnodes)
+ return aares, diffusionres, ssres
 end
 
 function hmmopt(samples::Array{SequencePairSample,1}, numHiddenStates::Int)

@@ -648,13 +648,7 @@ function mlalign()
   mask = Int[OBSERVED_DATA, OBSERVED_DATA, OBSERVED_DATA, MISSING_DATA]
 
   seq1, seq2 = masksequences(pairs[1].seq1, pairs[1].seq2, mask)
-  #seq1, seq2 = masksequences(pairs[1].seq1, Sequence("ATG"), mask)
   seqpair = SequencePair(0,seq1, seq2)
-  #=
-  mlparams = mlalignmentopt(seqpair, modelparams, cornercut)
-  #tkf92(nsamples::Int, rng::AbstractRNG, seqpair::SequencePair, pairparams::PairParameters, modelparams::ModelParameters, cornercut::Int=10000000, fixAlignment::Bool=false, align1::Array{Int,1}=zeros(Int,1), align2::Array{Int,1}=zeros(Int,1), fixStates::Bool=false, states::Array{Int,1}=zeros(Int,1), partialAlignment::Bool=false, samplealignments::Bool=true)
-  ll, mlsample = tkf92(0, rng, seqpair, mlparams, modelparams, cornercut, false, zeros(Int,1), zeros(Int,1),false,zeros(Int,1),false,false)
-  =#
   ll, mlsample = mlalignment(seqpair, modelparams, cornercut)
   println(getalignment(seqpair.seq1, mlsample.align1))
   println(getalignment(seqpair.seq2, mlsample.align2))
@@ -684,7 +678,7 @@ function train()
   fixInputAlignments = false
 
   #inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data.txt"))
-  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse.txt"))[1:20]
+  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse.txt"))[1:60]
   pairs = SequencePair[sample.seqpair for sample in inputsamples]
 
   println("N=",length(pairs))
@@ -693,7 +687,7 @@ function train()
   mcmciter = 100
   samplerate = 20
 
-  numHiddenStates = 2
+  numHiddenStates = 6
 
   freeParameters = 6*numHiddenStates + (numHiddenStates-1) + (numHiddenStates*numHiddenStates - numHiddenStates) + numHiddenStates*19
   if useswitching
@@ -873,14 +867,24 @@ function train()
           set_parameters(obsnodes[h].aapairnode, params[1], 1.0)
           dopt = params[2]
           set_parameters(obsnodes[h].diffusion, dopt[1], mod2pi(dopt[2]+pi)-pi, dopt[3], dopt[4], mod2pi(dopt[5]+pi)-pi, dopt[6], 1.0, dopt[7])
+          sopt = params[3]
+          ssfreqs = sopt[1:3]
+          ssfreqs /= sum(ssfreqs)
+          set_parameters(obsnodes[h].ss, ssfreqs, 1.0)
         end
+        ssoptall(samples, obsnodes)
       else
         for h=1:numHiddenStates
           params = mlopt(h, samples,deepcopy(obsnodes))
           set_parameters(obsnodes[h].aapairnode, params[1], 1.0)
           dopt = params[2]
           set_parameters(obsnodes[h].diffusion, dopt[1], mod2pi(dopt[2]+pi)-pi, dopt[3], dopt[4], mod2pi(dopt[5]+pi)-pi, dopt[6], 1.0, dopt[7])
+          sopt = params[3]
+          ssfreqs = sopt[1:3]
+          ssfreqs /= sum(ssfreqs)
+          set_parameters(obsnodes[h].ss, ssfreqs, 1.0)
         end
+        ssoptall(samples, obsnodes)
       end
     end
 
@@ -907,7 +911,7 @@ function train()
     close(ser)
 
     for h=1:numHiddenStates
-      println(modelparams.obsnodes[h].diffusion)
+      println("H=",h,modelparams.obsnodes[h].ss)
     end
 
 
@@ -930,12 +934,15 @@ function sample_missing_values(rng::AbstractRNG, obsnodes::Array{ObservationNode
     psi0 = -1000.0
     phit = -1000.0
     psit = -1000.0
+    ss0 = 0
+    sst = 0
     if a > 0
       x0 =  seqpair.seq1.seq[a]
       #phi0 = seqpair.seq1.phi_error[a]
       #psi0 = seqpair.seq1.psi_error[a]
       phi0 = seqpair.seq1.phi[a]
       psi0 = seqpair.seq1.psi[a]
+      ss0 = seqpair.seq1.ss[a]
     end
     if b > 0
       xt =  seqpair.seq2.seq[b]
@@ -943,8 +950,9 @@ function sample_missing_values(rng::AbstractRNG, obsnodes::Array{ObservationNode
       #psit = seqpair.seq2.psi_error[b]
       phit = seqpair.seq2.phi[b]
       psit = seqpair.seq2.psi[b]
+      sst = seqpair.seq2.ss[b]
     end
-    x0, xt, phi, psi  = sample(obsnodes[h], rng, x0, xt, phi0,phit,psi0,psit, t)
+    x0, xt, phi, psi  = sample(obsnodes[h], rng, x0, xt, phi0,phit,psi0,psit, ss0, sst, t)
    # println(h, x0, xt, phi0,phit,psi0,psit, t)
     #phi,psi = sample_phi_psi(obsnodes[h].diffusion, rng, phi0,phit,psi0,psit,t)
     if a > 0
@@ -1072,23 +1080,12 @@ function test()
         mkpath(outputdir2)
         p = plot(layer(x=xvals, y=yvals, label=labels, Geom.label), layer(x=xvals, y=yvals, Geom.point), layer(x=phi_i, y=psi_i, Geom.histogram2d(xbincount=30, ybincount=30)), Coord.Cartesian(xmin=Float64(-pi), xmax=Float64(pi), ymin=Float64(-pi), ymax=Float64(pi)))
         draw(SVG(string(outputdir2,"hist",i,".svg"), 5inch, 5inch), p)
-        #draw(PNG(string(outputdir2,"hist",i,".png"), 5inch, 5inch), p)
       end
     end
 
 
     align1 = inputalign1
     align2 = inputalign2
-
-    #=
-      sumphi = Float64[]
-      sumpsi = Float64[]
-      for sample in filled_pairs
-        push!(sumphi, angular_rmsd(sample.seq2.phi, phi))
-        push!(sumpsi, angular_rmsd(sample.seq2.psi, psi))
-      end
-      println("TTT", sqrt(sum(sumphi .^ 2.0)/length(sumphi)),"\t", sqrt(sum(sumpsi .^ 2.0)/length(sumpsi)))
-      =#
 
 
 

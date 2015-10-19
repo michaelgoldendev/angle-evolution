@@ -3,6 +3,9 @@ using Distributions
 include("VonMisesDensity.jl")
 
 aminoacids = "ACDEFGHIKLMNPQRSTVWY"
+sschars = "HBEGITSC"
+ssmap = Int[1,2,2,1,1,3,3,3] # 1=helix, 2=sheet, 3=coil
+
 MISSING_ANGLE = -1000.0
 ANGLE_ERROR_KAPPA = 500.0
 
@@ -16,9 +19,10 @@ type Sequence
   psi_error::Array{Float64, 1}
   angle_error_kappa::Float64
   error_distribution::VonMisesDensity
+  ss::Array{Int,1}
 
   function Sequence(length::Int)
-    new(length, zeros(Int,length), ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA))
+    new(length, zeros(Int,length), ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA),zeros(Int,length))
   end
 
   function Sequence(seq::AbstractString)
@@ -28,7 +32,7 @@ type Sequence
       s[i] = search(aminoacids, seq[i])
     end
 
-    return new(len, s, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA))
+    return new(len, s, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA),zeros(Int,len))
   end
 
   function Sequence(seq::AbstractString, phi::Array{Float64,1}, psi::Array{Float64,1})
@@ -38,11 +42,27 @@ type Sequence
       s[i] = search(aminoacids, seq[i])
     end
 
-    return new(len, s, phi, psi, copy(phi), copy(psi), ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA))
+    return new(len, s, phi, psi, copy(phi), copy(psi), ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA), zeros(Int,len))
+  end
+
+  function Sequence(seq::AbstractString, phi::Array{Float64,1}, psi::Array{Float64,1}, ss::AbstractString)
+    len = length(seq)
+    s = zeros(Int,len)
+    for i=1:len
+      s[i] = search(aminoacids, seq[i])
+    end
+
+    len2 = length(ss)
+    ssint = zeros(Int,len2)
+    for i=1:len2
+      ssint[i] = ssmap[search(sschars, ss[i])]
+    end
+
+    return new(len, s, phi, psi, copy(phi), copy(psi), ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA), ssint)
   end
 
   function Sequence(sequence::Sequence)
-    return new(sequence.length, copy(sequence.seq), copy(sequence.phi), copy(sequence.psi), copy(sequence.phi_error), copy(sequence.psi_error), sequence.angle_error_kappa, VonMisesDensity(0.0, sequence.angle_error_kappa))
+    return new(sequence.length, copy(sequence.seq), copy(sequence.phi), copy(sequence.psi), copy(sequence.phi_error), copy(sequence.psi_error), sequence.angle_error_kappa, VonMisesDensity(0.0, sequence.angle_error_kappa), copy(sequence.ss))
   end
 end
 
@@ -250,9 +270,11 @@ function load_sequences_and_alignments(datafile)
   seq1 = ""
   phi1 = Float64[]
   psi1 = Float64[]
+  ss1 = Int[]
   seq2 = ""
   phi2 = Float64[]
   psi2 = Float64[]
+  ss2 = Int[]
   align1 = Int[]
   align2 = Int[]
   id = 1
@@ -275,6 +297,10 @@ function load_sequences_and_alignments(datafile)
       phi2 = Float64[parse(Float64, s) for s in split(ln, ",")]
     elseif line == 6
       psi2 = Float64[parse(Float64, s) for s in split(ln, ",")]
+    elseif line == 7
+      ss1 = strip(ln)
+    elseif line == 8
+      ss2 = strip(ln)
     elseif line == 9
       align1 = get_alignment(strip(ln))
       aligned = true
@@ -285,7 +311,7 @@ function load_sequences_and_alignments(datafile)
 
 
     if line == 11
-      seqpair = SequencePair(id, Sequence(seq1,phi1,psi1), Sequence(seq2,phi2,psi2))
+      seqpair = SequencePair(id, Sequence(seq1,phi1,psi1,ss1), Sequence(seq2,phi2,psi2,ss2))
       id += 1
       sample = SequencePairSample(seqpair,align1,align2)
       sample.aligned = aligned
