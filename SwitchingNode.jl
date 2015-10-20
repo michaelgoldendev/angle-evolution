@@ -12,10 +12,10 @@ type SwitchingNode
 
   function SwitchingNode()
       aapairnode_r1 = AAPairNode()
-      load_parameters(aapairnode_r1, "/home/michael/dev/moju/lg_LG.PAML.txt")
+      load_parameters(aapairnode_r1, "resources/lg_LG.PAML.txt")
 
       aapairnode_r2 = AAPairNode()
-      load_parameters(aapairnode_r2, "/home/michael/dev/moju/lg_LG.PAML.txt")
+      load_parameters(aapairnode_r2, "resources/lg_LG.PAML.txt")
 
       new(aapairnode_r1, aapairnode_r2, DiffusionNode(), DiffusionNode(), 2.0, 0.5)
   end

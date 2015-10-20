@@ -171,8 +171,3 @@ println(pairnode.Pt)
 set_parameters(pairnode,100.0)
 println(pairnode.Pt)
 =#
-
-#
-#println("D",Diagonal(pairnode.D))
-#println("D",Diagonal(exp(pairnode.D)))
-#versioninfo(true)
