@@ -189,12 +189,14 @@ function switchoptswitchingparams(h::Int, samples::Array{SequencePairSample,1}, 
 end
 
 function ssll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample,1}, seqindices::Array{Int,1}, hindices::Array{Int,1}, obsnodes::Array{ObservationNode, 1})
-  infreqs = x[1:3]
-  neweqfreqs = infreqs/sum(infreqs)
+  neweqfreqs = x/sum(x)
   if(!(0.999 < sum(neweqfreqs) < 1.001))
-    neweqfreqs = ones(Float64, 3)*0.05
+    neweqfreqs = ones(Float64, 3)/3.0
   end
 
+  println(neweqfreqs)
+  println(obsnodes[h].ss.ctmc.S)
+  println(obsnodes[h].ss.ctmc.Q)
   set_parameters(obsnodes[h].ss, neweqfreqs,1.0)
 
   # dirichlet prior

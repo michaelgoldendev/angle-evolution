@@ -1,3 +1,6 @@
+using Formatting
+using Distributions
+
 include("ModelParameters.jl")
 include("Sequence.jl")
 include("ObservationNode.jl")
@@ -8,8 +11,7 @@ include("ModelOptimization.jl")
 include("AngleUtils.jl")
 include("AlignmentUtils.jl")
 
-using Formatting
-using Distributions
+
 
 #=
   Pkg.add("DataStructures")
@@ -704,13 +706,13 @@ function train()
   maxiters = 100000
   cornercutinit = 10
   cornercut = 75
-  usesecondarystructure = false
+  usesecondarystructure = true
   useswitching = false
-  useparallel = true
+  useparallel = false
   fixInputAlignments = false
 
-  #inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data.txt"))
-  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse.txt"))[1:75]
+  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data.txt"))[1:60]
+  #inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse.txt"))[1:75]
   pairs = SequencePair[sample.seqpair for sample in inputsamples]
 
   println("N=",length(pairs))
@@ -719,13 +721,14 @@ function train()
   mcmciter = 100
   samplerate = 20
 
-  numHiddenStates = 8
+  numHiddenStates = 6
 
   freeParameters = 6*numHiddenStates + (numHiddenStates-1) + (numHiddenStates*numHiddenStates - numHiddenStates) + numHiddenStates*19
   if useswitching
     freeParameters = 12*numHiddenStates + (numHiddenStates-1) + (numHiddenStates*numHiddenStates - numHiddenStates) + numHiddenStates*38 + numHiddenStates*2
   end
 
+  mkpath("models/")
   loadModel = false
   if useswitching
     modelfile = string("models/pairhmm",numHiddenStates,"_switching_n",length(pairs),".jls")
@@ -819,6 +822,7 @@ function train()
 
   println("Initialised")
 
+  mkpath("logs/")
   mlwriter = open(string("logs/ml",numHiddenStates,".log"), "w")
   write(mlwriter, "iter\tll\tcount\tavgll\tnumFreeParameters\tAIC\tlambda_shape\tlambda_scale\tmu_shape\tmu_scale\tr_alpha\tr_beta\tt_shape\tt_scale\ttime_per_iter\n")
 

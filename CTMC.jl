@@ -56,6 +56,9 @@ function set_parameters(node::CTMC, eqfreqs::Array{Float64, 1},  S::Array{Float6
     end
   end
 
+  println(node.S)
+  println(node.Q)
+  println(expm(node.Q))
   node.D, node.V = eig(node.Q)
   node.Vi = inv(node.V)
   node.Pt = node.V*Diagonal(exp(node.D*t))*node.Vi

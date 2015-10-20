@@ -1,5 +1,3 @@
-using Distributions
-
 include("VonMisesDensity.jl")
 
 aminoacids = "ACDEFGHIKLMNPQRSTVWY"

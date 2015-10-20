@@ -15,6 +15,9 @@ addprocs(CPU_CORES)
 train()
 
 #include("PairHMM.jl")
+#train()
+
+#include("PairHMM.jl")
 #mlalign()
 
 
