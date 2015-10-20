@@ -710,7 +710,7 @@ function train()
   fixInputAlignments = false
 
   #inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data.txt"))
-  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse.txt"))
+  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse.txt"))[1:75]
   pairs = SequencePair[sample.seqpair for sample in inputsamples]
 
   println("N=",length(pairs))
