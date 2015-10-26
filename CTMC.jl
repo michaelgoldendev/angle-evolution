@@ -1,5 +1,6 @@
-include("Utils.jl")
+using UtilsModule
 
+export CTMC
 type CTMC
   eqfreqs::Array{Float64, 1}
   logeqfreqs::Array{Float64, 1}
@@ -36,6 +37,7 @@ type CTMC
   end
 end
 
+export set_parameters
 function set_parameters(node::CTMC, eqfreqs::Array{Float64, 1},  S::Array{Float64,2}, t::Float64)
   node.eqfreqs = eqfreqs
   node.logeqfreqs = log(eqfreqs)
@@ -56,11 +58,10 @@ function set_parameters(node::CTMC, eqfreqs::Array{Float64, 1},  S::Array{Float6
     end
   end
 
-  println(node.S)
-  println(node.Q)
-  println(expm(node.Q))
-  node.D, node.V = eig(node.Q)
-  node.Vi = inv(node.V)
+  D, V = eig(node.Q)
+  node.D = real(D)
+  node.V = real(V)
+  node.Vi = real(inv(V))
   node.Pt = node.V*Diagonal(exp(node.D*t))*node.Vi
   n = length(node.eqfreqs)
   for i=1:n
@@ -97,6 +98,7 @@ function set_parameters(node::CTMC, t::Float64)
   end
 end
 
+export get_data_lik
 function get_data_lik(node::CTMC, x0::Int)
   if x0 > 0
     return node.logeqfreqs[x0]
@@ -118,6 +120,7 @@ function get_data_lik(node::CTMC, x0::Int, xt::Int, t::Float64)
   return 0.0
 end
 
+export sample
 function sample(node::CTMC, rng::AbstractRNG, x0::Int, xt::Int, t::Float64)
   a = x0
   b = xt

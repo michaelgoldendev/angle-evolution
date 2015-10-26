@@ -1,3 +1,7 @@
+#include("Sequence.jl")
+
+export mpdalignment
+
 function mpdalignment(samples::Array{SequencePairSample,1})
   n = samples[1].seqpair.seq1.length
   m = samples[1].seqpair.seq2.length

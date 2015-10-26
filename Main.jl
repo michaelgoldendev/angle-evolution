@@ -10,7 +10,7 @@ profilewriter = open("profile.log", "w")
 Profile.print(profilewriter)
 =#
 
-addprocs(CPU_CORES)
+addprocs(4)
 @everywhere include("PairHMM.jl")
 train()
 

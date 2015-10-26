@@ -2,31 +2,12 @@ using NLopt
 
 freqprior = Beta(1.5, 1.5)
 function switchll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample,1}, seqindices::Array{Int,1}, hindices::Array{Int,1}, obsnodes::Array{ObservationNode, 1}, store::Array{Float64, 1})
-  aapairnode_r1_eqfreqs = x[1:20]/sum(x[1:20])
-  if(!(0.999 < sum(aapairnode_r1_eqfreqs) < 1.001))
-    aapairnode_r1_eqfreqs = ones(Float64, 20)*0.05
-  end
-
-  aapairnode_r2_eqfreqs = x[21:40]/sum(x[21:40])
-  if(!(0.999 < sum(aapairnode_r2_eqfreqs) < 1.001))
-    aapairnode_r2_eqfreqs = ones(Float64, 20)*0.05
-  end
-
-  set_parameters(obsnodes[h].switching.aapairnode_r1, aapairnode_r1_eqfreqs, 1.0)
-  set_parameters(obsnodes[h].switching.aapairnode_r2, aapairnode_r2_eqfreqs, 1.0)
-
-  d1 = x[41:46]
-  set_parameters(obsnodes[h].switching.diffusion_r1, d1[1], mod2pi(d1[2]+pi)-pi, d1[3], d1[4], mod2pi(d1[5]+pi)-pi, d1[6], 1.0)
-  d2 = x[47:52]
-  set_parameters(obsnodes[h].switching.diffusion_r2, d2[1], mod2pi(d2[2]+pi)-pi, d2[3], d2[4], mod2pi(d2[5]+pi)-pi, d2[6], 1.0)
-
-  obsnodes[h].switching.alpha = x[53]
-  obsnodes[h].switching.pi_r1 = x[54]
+  set_parameters(obsnodes[h].switching, x)
 
   # dirichlet prior
   concentration_param = 1.025
-  ll = sum((concentration_param-1.0)*log(aapairnode_r1_eqfreqs))
-  ll += sum((concentration_param-1.0)*log(aapairnode_r2_eqfreqs))
+  ll = sum((concentration_param-1.0)*log(obsnodes[h].switching.aapairnode_r1.eqfreqs))
+  ll += sum((concentration_param-1.0)*log(obsnodes[h].switching.aapairnode_r2.eqfreqs))
   ll += logpdf(freqprior, obsnodes[h].switching.pi_r1)
 
   for (s,a) in zip(seqindices,hindices)
@@ -48,7 +29,7 @@ function switchll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample
 
   if ll > store[1]
     store[1] = ll
-    for i=1:54
+    for i=1:60
       store[i+1]  = x[i]
     end
   end
@@ -56,12 +37,13 @@ function switchll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample
   return ll
 end
 
+export switchopt
 function switchopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
   seqindices,hindices = getindices(samples, h)
-  store = ones(Float64,55)*(-1e20)
+  store = ones(Float64,61)*(-1e20)
   localObjectiveFunction = ((param, grad) -> switchll(param, h, samples,seqindices,hindices, obsnodes, store))
-  opt = Opt(:LN_COBYLA, 54)
-  lower = zeros(Float64, 54)
+  opt = Opt(:LN_COBYLA, 60)
+  lower = zeros(Float64, 60)
   lower[41] = 1e-5
   lower[42] = -1000000.0
   lower[43] = 1e-5
@@ -80,7 +62,7 @@ function switchopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array
   lower[54] = 0.0
   lower_bounds!(opt, lower)
 
-  upper = ones(Float64, 54)
+  upper = ones(Float64, 60)
   upper[41] = 1e5
   upper[42] = 1000000.0
   upper[43] = 1e5
@@ -99,93 +81,15 @@ function switchopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array
   upper[54] = 1.0
   upper_bounds!(opt, upper)
   xtol_rel!(opt,1e-4)
-  maxeval!(opt, 500)
+  maxeval!(opt, 600)
   max_objective!(opt, localObjectiveFunction)
-  initial = zeros(Float64,54)
-  for i=1:20
-    initial[i] = obsnodes[h].switching.aapairnode_r1.eqfreqs[i]
-    initial[20+i] = obsnodes[h].switching.aapairnode_r2.eqfreqs[i]
-  end
-  initial[41] = obsnodes[h].switching.diffusion_r1.alpha_phi
-  initial[42] = obsnodes[h].switching.diffusion_r1.mu_phi
-  initial[43] = obsnodes[h].switching.diffusion_r1.sigma_phi
-  initial[44] = obsnodes[h].switching.diffusion_r1.alpha_psi
-  initial[45] = obsnodes[h].switching.diffusion_r1.mu_psi
-  initial[46] = obsnodes[h].switching.diffusion_r1.sigma_psi
-  initial[47] = obsnodes[h].switching.diffusion_r2.alpha_phi
-  initial[48] = obsnodes[h].switching.diffusion_r2.mu_phi
-  initial[49] = obsnodes[h].switching.diffusion_r2.sigma_phi
-  initial[50] = obsnodes[h].switching.diffusion_r2.alpha_psi
-  initial[51] = obsnodes[h].switching.diffusion_r2.mu_psi
-  initial[52] = obsnodes[h].switching.diffusion_r2.sigma_psi
-  initial[53] = obsnodes[h].switching.alpha
-  initial[54] = obsnodes[h].switching.pi_r1
+  initial = get_parameters(obsnodes[h].switching)
 
   (minf,minx,ret) = optimize(opt, initial)
-  optx = store[2:55]
+  optx = store[2:61]
 
-
-  set_parameters(obsnodes[h].switching.aapairnode_r1, optx[1:20]/sum(optx[1:20]), 1.0)
-  set_parameters(obsnodes[h].switching.aapairnode_r2, optx[21:40]/sum(optx[21:40]), 1.0)
-  set_parameters(obsnodes[h].switching.diffusion_r1, optx[41], mod2pi(optx[42]+pi)-pi, optx[43], optx[44], mod2pi(optx[45]+pi)-pi, optx[46], 1.0)
-  set_parameters(obsnodes[h].switching.diffusion_r2, optx[47], mod2pi(optx[48]+pi)-pi, optx[49], optx[50], mod2pi(optx[51]+pi)-pi, optx[52], 1.0)
-  obsnodes[h].switching.alpha = optx[53]
-  obsnodes[h].switching.pi_r1 = optx[54]
-
+  set_parameters(obsnodes[h].switching, optx)
   return optx
-end
-
-function switchllswitchingparams(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample,1}, seqindices::Array{Int,1}, hindices::Array{Int,1}, obsnodes::Array{ObservationNode, 1})
-
-  obsnodes[h].switching.alpha = x[1]
-  obsnodes[h].switching.pi_r1 = x[2]
-  ll = 0.0
-  for (s,a) in zip(seqindices,hindices)
-    sample = samples[s]
-    seqpair = sample.seqpair
-    align1 = sample.align1
-    align2 = sample.align2
-    i = align1[a]
-    j = align2[a]
-    t = sample.params.t
-    if i == 0
-      ll += get_data_lik_xt(obsnodes[h], seqpair.seq2,j,t)
-    elseif j == 0
-      ll += get_data_lik_x0(obsnodes[h], seqpair.seq1,i,t)
-    else
-      ll += get_data_lik(obsnodes[h], seqpair.seq1, seqpair.seq2, i, j, t)
-    end
-  end
-
-  return ll
-end
-
-function switchoptswitchingparams(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
-  seqindices,hindices = getindices(samples, h)
-  store = ones(Float64,3)*(-1e20)
-  localObjectiveFunction = ((param, grad) -> switchllswitchingparams(param, h, samples,seqindices,hindices, obsnodes))
-  opt = Opt(:LN_COBYLA, 2)
-  lower = zeros(Float64, 2)
-  lower[1] = 1e-3
-  lower[2] = 0.0
-  lower_bounds!(opt, lower)
-
-  upper = ones(Float64, 2)
-  upper[1] = 1e3
-  upper[2] = 1.0
-  upper_bounds!(opt, upper)
-  xtol_rel!(opt,1e-4)
-  maxeval!(opt, 80)
-  max_objective!(opt, localObjectiveFunction)
-  initial = zeros(Float64,2)
-  initial[1] = obsnodes[h].switching.alpha
-  initial[2] = obsnodes[h].switching.pi_r1
-
-  (minf,minx,ret) = optimize(opt, initial)
-  obsnodes[h].switching.alpha = minx[1]
-  obsnodes[h].switching.pi_r1 = minx[2]
-
-  return minx
 end
 
 function ssll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample,1}, seqindices::Array{Int,1}, hindices::Array{Int,1}, obsnodes::Array{ObservationNode, 1})
@@ -194,9 +98,6 @@ function ssll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample,1},
     neweqfreqs = ones(Float64, 3)/3.0
   end
 
-  println(neweqfreqs)
-  println(obsnodes[h].ss.ctmc.S)
-  println(obsnodes[h].ss.ctmc.Q)
   set_parameters(obsnodes[h].ss, neweqfreqs,1.0)
 
   # dirichlet prior
@@ -241,9 +142,13 @@ function ssopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array{Obs
   return minx
 end
 
+
+
 function ssll_all(a::Float64, b::Float64, c::Float64, samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
   for obsnode in obsnodes
       set_parameters(obsnode.ss, a, b, c, 1.0)
+      set_parameters(obsnode.switching.ss_r1, a, b, c, 1.0)
+      set_parameters(obsnode.switching.ss_r2, a, b, c, 1.0)
   end
 
   ll = 0.0
@@ -257,11 +162,14 @@ function ssll_all(a::Float64, b::Float64, c::Float64, samples::Array{SequencePai
       j = align2[a]
       h = sample.states[a]
       if i == 0
-        ll += get_data_lik(obsnodes[h], seqpair.seq2,j,3)
+        #ll += get_data_lik(obsnodes[h], seqpair.seq2,j,3
+        ll += get_data_lik_x0(obsnodes[h], seqpair.seq2,j, t)
       elseif j == 0
-        ll += get_data_lik(obsnodes[h], seqpair.seq1,i,3)
+        ll += get_data_lik_xt(obsnodes[h], seqpair.seq1,i, t)
+        #ll += get_data_lik(obsnodes[h], seqpair.seq1,i,3)
       else
-        ll += get_data_lik(obsnodes[h], seqpair.seq1, seqpair.seq2, i, j, t,3)
+        ll += get_data_lik(obsnodes[h], seqpair.seq1, seqpair.seq2, i, j, t)
+        #ll += get_data_lik(obsnodes[h], seqpair.seq1, seqpair.seq2, i, j, t,3)
       end
     end
   end
@@ -269,7 +177,8 @@ function ssll_all(a::Float64, b::Float64, c::Float64, samples::Array{SequencePai
   return ll
 end
 
-function ssoptall(samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
+export ssoptrates
+function ssoptrates(samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
   localObjectiveFunction = ((param, grad) -> ssll_all(param[1], param[2], param[3], samples, obsnodes))
   opt = Opt(:LN_COBYLA, 3)
   lower = ones(Float64, 3)*1e-5
@@ -283,6 +192,61 @@ function ssoptall(samples::Array{SequencePairSample,1}, obsnodes::Array{Observat
 
   for obsnode in obsnodes
       set_parameters(obsnode.ss, minx[1], minx[2], minx[3], 1.0)
+      set_parameters(obsnode.switching.ss_r1, minx[1], minx[2], minx[3], 1.0)
+      set_parameters(obsnode.switching.ss_r2, minx[1], minx[2], minx[3], 1.0)
+  end
+  println("ZZZ", minx)
+  return minx
+end
+
+
+function diffusion_all(branch_scale::Float64, samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
+  for obsnode in obsnodes
+      obsnode.diffusion.branch_scale = branch_scale
+      obsnode.switching.diffusion_r1.branch_scale = branch_scale
+      obsnode.switching.diffusion_r2.branch_scale = branch_scale
+  end
+
+  ll = 0.0
+  for sample in samples
+    seqpair = sample.seqpair
+    align1 = sample.align1
+    align2 = sample.align2
+    t = sample.params.t
+    for a=1:length(align1)
+      i = align1[a]
+      j = align2[a]
+      h = sample.states[a]
+      if i == 0
+        ll += get_data_lik_x0(obsnodes[h], seqpair.seq2,j, t)
+      elseif j == 0
+        ll += get_data_lik_xt(obsnodes[h], seqpair.seq1,i,t)
+      else
+        ll += get_data_lik(obsnodes[h], seqpair.seq1, seqpair.seq2, i, j, t)
+      end
+    end
+  end
+
+  return ll
+end
+
+export optimize_diffusion_branch_scale
+function optimize_diffusion_branch_scale(samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
+  localObjectiveFunction = ((param, grad) -> diffusion_all(param[1], samples, obsnodes))
+  opt = Opt(:LN_COBYLA, 1)
+  lower = ones(Float64, 1)*1e-5
+  lower_bounds!(opt, lower)
+  upper = ones(Float64, 1)*1e5
+  upper_bounds!(opt, upper)
+  xtol_rel!(opt,1e-4)
+  maxeval!(opt, 200)
+  max_objective!(opt, localObjectiveFunction)
+  (minf,minx,ret) = optimize(opt, Float64[obsnodes[1].branch_scale])
+
+  for obsnode in obsnodes
+      obsnode.diffusion.branch_scale = minx[1]
+      obsnode.switching.diffusion_r1.branch_scale = minx[1]
+      obsnode.switching.diffusion_r2.branch_scale = minx[1]
   end
   return minx
 end
@@ -422,6 +386,7 @@ function diffusionopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Ar
 end
 
 
+export mlopt
 function mlopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
  aares = aapairopt(h, samples,obsnodes)
  diffusionres = diffusionopt(h, samples, obsnodes)
@@ -432,6 +397,7 @@ function mlopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array{Obs
  return aares, diffusionres, ssres
 end
 
+export hmmopt
 function hmmopt(samples::Array{SequencePairSample,1}, numHiddenStates::Int)
   hmminitprobs = ones(Float64, numHiddenStates)*1e-4
   hmmtransprobs = ones(Float64, numHiddenStates, numHiddenStates)*1e-2
@@ -459,6 +425,7 @@ function hmmopt(samples::Array{SequencePairSample,1}, numHiddenStates::Int)
   return hmminitprobs,hmmtransprobs
 end
 
+export prioropt
 function prioropt(samples::Array{SequencePairSample,1}, prior::PriorDistribution)
   localObjectiveFunction = ((param, grad) -> logprior(PriorDistribution(param), samples))
   opt = Opt(:LN_COBYLA, 8)

@@ -1,5 +1,6 @@
 include("VonMisesDensity.jl")
 
+export DiffusionNode
 type DiffusionNode
   vm_phi::VonMisesDensity
   vm_psi::VonMisesDensity
@@ -30,10 +31,12 @@ type DiffusionNode
   end
 end
 
+export get_parameters
 function get_parameters(node::DiffusionNode)
   return Float64[node.alpha_phi, node.mu_phi, node.sigma_phi, node.alpha_psi, node.mu_psi, node.sigma_psi, node.branch_scale]
 end
 
+export set_parameters
 function set_parameters(node::DiffusionNode, alpha_phi::Float64, mu_phi::Float64, sigma_phi::Float64, alpha_psi::Float64, mu_psi::Float64, sigma_psi::Float64, t::Float64, branch_scale::Float64=1.0)
   node.alpha_phi = alpha_phi
   node.mu_phi = mu_phi
@@ -48,6 +51,7 @@ function set_parameters(node::DiffusionNode, alpha_phi::Float64, mu_phi::Float64
   set_parameters(node.vm_psi_stat, node.mu_psi, min(700.0, 2.0*node.alpha_psi/(node.sigma_psi*node.sigma_psi)))
 end
 
+export get_data_lik_phi
 function get_data_lik_phi(node::DiffusionNode, phi_x0::Float64)
   phi_ll = 0.0
   if phi_x0 > -100.0
@@ -56,6 +60,7 @@ function get_data_lik_phi(node::DiffusionNode, phi_x0::Float64)
   return phi_ll
 end
 
+export get_data_lik_psi
 function get_data_lik_psi(node::DiffusionNode, psi_x0::Float64)
   psi_ll = 0.0
   if psi_x0 > -100.0
@@ -64,6 +69,7 @@ function get_data_lik_psi(node::DiffusionNode, psi_x0::Float64)
   return psi_ll
 end
 
+export get_data_lik
 function get_data_lik(node::DiffusionNode, phi_x0::Float64, psi_x0::Float64)
   return get_data_lik_phi(node, phi_x0) + get_data_lik_psi(node, psi_x0)
 end
@@ -87,6 +93,8 @@ function get_data_lik(node::DiffusionNode, phi_x0::Float64, psi_x0::Float64, phi
   return phi_ll + psi_ll
 end
 
+
+export sample_phi_psi
 function sample_phi_psi(node::DiffusionNode, rng::AbstractRNG, phi_x0::Float64, phi_xt::Float64, psi_x0::Float64, psi_xt::Float64, t2::Float64)
   t = t2*node.branch_scale
   phi = sample(rng, node.alpha_phi, node.mu_phi, node.sigma_phi, phi_x0, phi_xt, t)
@@ -95,6 +103,7 @@ function sample_phi_psi(node::DiffusionNode, rng::AbstractRNG, phi_x0::Float64, 
   return phi, psi
 end
 
+export sample
 function sample(rng::AbstractRNG, alpha::Float64, mu::Float64, sigma::Float64, x0::Float64, xt::Float64, t::Float64)
   a = x0
   b = xt

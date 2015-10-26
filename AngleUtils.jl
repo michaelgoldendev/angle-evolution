@@ -1,3 +1,4 @@
+export angular_rmsd
 function angular_rmsd(theta1::Array{Float64, 1}, theta2::Array{Float64})
   dist =0.0
   len = 0
@@ -38,10 +39,7 @@ function angular_rmsd(theta1::Array{Float64, 1}, theta2::Array{Float64},  align1
   return sqrt(dist/float(len))
 end
 
-
-
-
-
+export angular_mean
 function angular_mean(theta::Array{Float64, 1})
   if length(theta) == 0
     return -1000.0
@@ -65,6 +63,7 @@ function angular_mean(theta::Array{Float64, 1})
   end
 end
 
+export pimod
 function pimod(angle::Float64)
   theta = mod2pi(angle)
   if theta > pi

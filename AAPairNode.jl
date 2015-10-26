@@ -1,5 +1,6 @@
-include("Utils.jl")
+using UtilsModule
 
+export AAPairNode
 type AAPairNode
   eqfreqs::Array{Float64, 1}
   logeqfreqs::Array{Float64, 1}
@@ -28,6 +29,7 @@ type AAPairNode
   end
 end
 
+export set_parameters
 function set_parameters(node::AAPairNode, eqfreqs::Array{Float64, 1},  S::Array{Float64,2}, t::Float64)
   node.eqfreqs = eqfreqs
   node.logeqfreqs = log(eqfreqs)
@@ -83,6 +85,7 @@ function set_parameters(node::AAPairNode, t::Float64)
   end
 end
 
+export load_parameters
 function load_parameters(node::AAPairNode, parameter_file)
   f = open(parameter_file)
   lines = readlines(f)
@@ -115,6 +118,7 @@ function load_parameters(node::AAPairNode, parameter_file)
   set_parameters(node, eqfreqs, S, 1.0)
 end
 
+export get_data_lik
 function get_data_lik(node::AAPairNode, x0::Int)
   if x0 > 0
     return node.logeqfreqs[x0]
@@ -136,11 +140,12 @@ function get_data_lik(node::AAPairNode, x0::Int, xt::Int, t::Float64)
   return 0.0
 end
 
+export sample
 function sample(node::AAPairNode, rng::AbstractRNG, x0::Int, xt::Int, t::Float64)
   a = x0
   b = xt
+  set_parameters(node, t)
   if a <= 0 && b <= 0
-    set_parameters(node, t)
     a = sample(rng, node.eqfreqs)
     b = sample(rng, node.Pt[a,:])
   elseif a <= 0

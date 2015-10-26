@@ -86,24 +86,3 @@ function sample(density::VonMisesDensity, rng::AbstractRNG)
     return theta
   end
 end
-
-#=
-vm = VonMisesDensity()
-set_parameters(vm, float(pi), 700.0)
-rng=MersenneTwister(138411101308)
-
-v = Float64[sample(vm, rng) for i=1:2000]
-println(v)
-println(std(v))
-=#
-#=
-println("A",logdensity(vm, 0.0, 0.0, 1.0))
-println(logdensity(vm, 1.0, 0.0, 1.0))
-println(logdensity(vm, 2.0, 0.0, 1.0))
-println(logdensity(vm, 3.0, 0.0, 1.0))
-println(logdensity(vm, 4.0, 0.0, 1.0))
-println(logdensity(vm, 5.0, 0.0, 1.0))
-println(logdensity(vm, 6.0, 0.0, 1.0))
-println(logdensity(vm, 7.0, 0.0, 1.0))
-=#
-

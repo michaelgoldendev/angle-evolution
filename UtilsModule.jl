@@ -1,4 +1,7 @@
 module UtilsModule
+  include("AcceptanceLogger.jl")
+  include("AngleUtils.jl")
+
   export quickExp
   export safelog
   export orderpair

@@ -1,18 +1,13 @@
 using Formatting
 using Distributions
 
-include("ModelParameters.jl")
-include("Sequence.jl")
-include("ObservationNode.jl")
+include("UtilsModule.jl")
+importall UtilsModule
 
-include("AcceptanceLogger.jl")
-include("Utils.jl")
-include("ModelOptimization.jl")
-include("AngleUtils.jl")
-include("AlignmentUtils.jl")
+include("NodesModule.jl")
+importall NodesModule
 
-
-
+ include("AlignmentUtils.jl")
 #=
   Pkg.add("DataStructures")
   Pkg.add("Formatting")
@@ -22,18 +17,6 @@ include("AlignmentUtils.jl")
   using JuMP
   =#
 
-
-#=
-START = 1
-MATCH = 2
-XINSERT = 3
-YINSERT = 4
-END = 5
-N1 = 6
-N2 = 7
-N3 = 8
-N4 = 9
-=#
 START = 1
 MATCH = 2
 XINSERT = 3
@@ -661,7 +644,7 @@ function mlalign()
 
   srand(98418108751401)
   rng = MersenneTwister(242402531025555)
-  modelfile = "models/pairhmm16_noswitching_n128.jls"
+  modelfile = "models/pairhmm16_nossoptratesching_n128.jls"
 
   cornercut = 75
 
@@ -707,12 +690,12 @@ function train()
   cornercutinit = 10
   cornercut = 75
   usesecondarystructure = true
-  useswitching = false
-  useparallel = false
+  useswitching = true
+  useparallel = true
   fixInputAlignments = false
 
-  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data.txt"))[1:60]
-  #inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse.txt"))[1:75]
+  #inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data.txt"))[1:50]
+  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse.txt"))[1:20]
   pairs = SequencePair[sample.seqpair for sample in inputsamples]
 
   println("N=",length(pairs))
@@ -721,7 +704,7 @@ function train()
   mcmciter = 100
   samplerate = 20
 
-  numHiddenStates = 6
+  numHiddenStates = 4
 
   freeParameters = 6*numHiddenStates + (numHiddenStates-1) + (numHiddenStates*numHiddenStates - numHiddenStates) + numHiddenStates*19
   if useswitching
@@ -840,7 +823,7 @@ function train()
 
       refs = RemoteRef[]
       for k=1:length(pairs)
-        ref = @spawn mcmc_sequencepair(currentiter, mcmciter, samplerate, MersenneTwister(abs(rand(Int))), SequencePairSample(current_samples[k]), deepcopy(modelparams), cornercut, fixInputAlignments && inputsamples[k].aligned)
+        ref = @spawn mcmc_sequencepair(currentiter, mcmciter, samplerate, MersenneTwister(abs(rand(Int))), deepcopy(current_samples[k]), deepcopy(modelparams), cornercut, fixInputAlignments && inputsamples[k].aligned)
         push!(refs,ref)
       end
 
@@ -882,16 +865,7 @@ function train()
         push!(refs, ref)
       end
       for h=1:numHiddenStates
-        optx = fetch(refs[h])
-        set_parameters(obsnodes[h].switching.aapairnode_r1, optx[1:20]/sum(optx[1:20]), 1.0)
-        set_parameters(obsnodes[h].switching.aapairnode_r2, optx[21:40]/sum(optx[21:40]), 1.0)
-        set_parameters(obsnodes[h].switching.diffusion_r1, optx[41], mod2pi(optx[42]+pi)-pi, optx[43], optx[44], mod2pi(optx[45]+pi)-pi, optx[46], 1.0)
-        set_parameters(obsnodes[h].switching.diffusion_r2, optx[47], mod2pi(optx[48]+pi)-pi, optx[49], optx[50], mod2pi(optx[51]+pi)-pi, optx[52], 1.0)
-        obsnodes[h].switching.alpha = optx[53]
-        obsnodes[h].switching.pi_r1 = optx[54]
-      end
-
-      for h=1:numHiddenStates
+        set_parameters(obsnodes[h].switching, fetch(refs[h]))
         println("H=",h,"\t", obsnodes[h].switching.alpha, "\t", obsnodes[h].switching.pi_r1)
       end
     else
@@ -914,9 +888,6 @@ function train()
             set_parameters(obsnodes[h].ss, ssfreqs, 1.0)
           end
         end
-        if usesecondarystructure
-          ssoptall(samples, obsnodes)
-        end
       else
         for h=1:numHiddenStates
           params = mlopt(h, samples,deepcopy(obsnodes))
@@ -930,12 +901,20 @@ function train()
             set_parameters(obsnodes[h].ss, ssfreqs, 1.0)
           end
         end
-        if usesecondarystructure
-          ssoptall(samples, obsnodes)
-        end
-
       end
     end
+
+    if usesecondarystructure
+      minsss = ssoptrates(samples, obsnodes)
+      println("XXX",minsss)
+      for obsnode in obsnodes
+        set_parameters(obsnode.ss, minsss[1], minsss[2], minsss[3], 1.0)
+        set_parameters(obsnode.switching.ss_r1, minsss[1], minsss[2], minsss[3], 1.0)
+        set_parameters(obsnode.switching.ss_r2, minsss[1], minsss[2], minsss[3], 1.0)
+      end
+    end
+
+    optimize_diffusion_branch_scale(samples,obsnodes)
 
 
     hmminitprobs, hmmtransprobs = hmmopt(samples,numHiddenStates)
@@ -949,6 +928,11 @@ function train()
     println("E-step time = ", estep_elapsed)
     println("M-step time = ", mstep_elapsed)
 
+    for h=1:numHiddenStates
+      println("A",obsnodes[h].switching.ss_r1.ctmc)
+      println("B",obsnodes[h].switching.ss_r2.ctmc)
+    end
+  println("BRANCH_SCALE=", obsnodes[1].diffusion.branch_scale)
 
 
     currenttime = now()
@@ -971,7 +955,6 @@ function sample_missing_values(rng::AbstractRNG, obsnodes::Array{ObservationNode
   newseq1 = Sequence(seqpair.seq1)
   newseq2 = Sequence(seqpair.seq2)
   t = pairsample.params.t
-
   i = 1
   for (a,b) in zip(pairsample.align1, pairsample.align2)
     h = pairsample.states[i]
@@ -1034,8 +1017,8 @@ function test()
   #modelfile = "models/pairhmm12_noswitching.jls"
   #modelfile = "models/pairhmm8_noswitching.jls"
 
-  modelfile = "models/pairhmm8_noswitching_n75.jls"
-  outputdir = "logs/pairhmm8_noswitching_n75/"
+  modelfile = "models/pairhmm12_switching_n120.jls"
+  outputdir = "logs/pairhmm12_switching_n120/"
 
   fixAlignment = false
   cornercut = 75
@@ -1063,6 +1046,7 @@ function test()
     inputalign1 = pairs[k].align1
     inputalign2 = pairs[k].align2
     input = pairs[k].seqpair
+    #simulation(modelparams, input.seq1)
     seq1, seq2 = masksequences(input.seq1, input.seq2, mask)
     masked = SequencePair(0,seq1, seq2)
     current_sample = tkf92(1, rng, masked, PairParameters(), modelparams, cornercut, true, inputalign1, inputalign2)[2][1]
@@ -1080,6 +1064,7 @@ function test()
 
     #ll, mlalign = mlalignment(masked, modelparams, cornercut, samples[end].params)
     #filled_pairs = [sample_missing_values(rng, obsnodes, deepcopy(mlalign)) for sample in samples]
+
 
     phi = Float64[]
     psi = Float64[]
@@ -1152,8 +1137,85 @@ function test()
   close(outfile)
 end
 
+function simulation(modelparams::ModelParameters, seq::Sequence)
+  t = 1.0
+  params = PairParameters()
+  seqpair = SequencePair(0,seq, Sequence(seq.length))
 
-  #@profile train()
+  align1 = Int[i for i=1:seq.length]
+  align2 = Int[i for i=1:seq.length]
+  states = Int[1 for i=1:seq.length]
+
+  rng = MersenneTwister(210104494032)
+  tkf92(1, rng, seqpair::SequencePair, params, modelparams, 100, true, align1, align2, false, states)
+
+
+  steps = 100
+  dt = t / Float64(steps)
+  params.t = dt
+
+
+  samples = Sequence[]
+  push!(samples,seq)
+  for i=1:steps
+    next = Sequence(seq.length)
+    seqpair = SequencePair(0,samples[i], next)
+    sample = SequencePairSample(seqpair, params)
+    sample.align1 = align1
+    sample.align2 = align2
+    sample.states = states
+    newseqpair = sample_missing_values(rng, modelparams.obsnodes, sample)
+    #println(getaminoacidalignment(newseqpair.seq2,align2))
+    push!(samples,newseqpair.seq2)
+
+  end
+
+
+
+  out = open("animation2.txt", "w")
+  for j=1:length(samples)
+    sample = samples[j]
+    write(out, string(getaminoacidalignment(sample, align1)),"\n")
+    write(out, string(sample.phi),"\n")
+    write(out, string(sample.psi),"\n")
+  end
+  close(out)
+
+
+  for i=1:length(align1)
+    phi_i = Float64[]
+    psi_i = Float64[]
+    aax = Float64[]
+    aay = Float64[]
+    labels = AbstractString[]
+    layers = Gadfly.Layer[]
+    for j=1:length(samples)
+      seq = samples[j]
+      l = string(aminoacids[seq.seq[i]])
+      if j > 1 && (abs(seq.phi[i]-phi_i[end]) > pi || abs(seq.psi[i]-psi_i[end]) > pi)
+        append!(layers, layer(x=aax, y=aay, label=labels, Geom.label))
+        append!(layers, layer(x=phi_i, y=psi_i, Geom.line))
+        phi_i = Float64[]
+        psi_i = Float64[]
+        aax = Float64[]
+        aay = Float64[]
+        labels = AbstractString[]
+      end
+
+      push!(phi_i, seq.phi[i])
+      push!(psi_i, seq.psi[i])
+      push!(aax, seq.phi[i])
+      push!(aay, seq.psi[i])
+      push!(labels, l)
+    end
+    append!(layers, layer(x=aax, y=aay, label=labels, Geom.label))
+    append!(layers, layer(x=phi_i, y=psi_i, Geom.line))
+    p = plot(layers, Coord.Cartesian(xmin=Float64(-pi), xmax=Float64(pi), ymin=Float64(-pi), ymax=Float64(pi)))
+    draw(SVG(string("trajectory",i,".svg"), 5inch, 5inch), p)
+  end
+end
+
+  #@profile train()sam
   #profilewriter = open("profile.log", "w")
   #Profile.print(profilewriter)
 

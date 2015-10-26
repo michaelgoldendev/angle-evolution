@@ -1,3 +1,5 @@
+using Distributions
+
 include("VonMisesDensity.jl")
 
 aminoacids = "ACDEFGHIKLMNPQRSTVWY"
@@ -8,7 +10,7 @@ ssmap = Int[1,2,2,1,1,3,3,3] # 1=helix, 2=sheet, 3=coil
 MISSING_ANGLE = -1000.0
 ANGLE_ERROR_KAPPA = 500.0
 
-
+export Sequence
 type Sequence
   length::Int
   seq::Array{Int, 1}
@@ -68,6 +70,7 @@ type Sequence
   end
 end
 
+export SequencePair
 type SequencePair
   id::Int
   seq1::Sequence
@@ -87,7 +90,7 @@ type SequencePair
   end
 end
 
-
+export PairParameters
 type PairParameters
   lambda::Float64
   mu::Float64
@@ -113,6 +116,7 @@ type PairParameters
   end
 end
 
+export SequencePairSample
 type SequencePairSample
   seqpair::SequencePair
   params::PairParameters
@@ -145,6 +149,7 @@ type SequencePairSample
   end
 end
 
+export getconfigurations
 function getconfigurations(align1::Array{Int,1},align2::Array{Int,1})
   conf1 = Int[]
   conf2 = Int[]
@@ -159,6 +164,7 @@ function getconfigurations(align1::Array{Int,1},align2::Array{Int,1})
   return conf1, conf2
 end
 
+export getalignmentpath
 function getalignmentpath(n::Int, m::Int, align1::Array{Int,1},align2::Array{Int,1}, states::Array{Int,1})
   matrix::SparseMatrixCSC{Int64,Int64} = spzeros(Int, n+1, m+1)
   hindex = length(states)
@@ -190,6 +196,7 @@ function getalignmentpath(n::Int, m::Int, align1::Array{Int,1},align2::Array{Int
   return matrix
 end
 
+export getsequencestates
 function getsequencestates(align1::Array{Int,1}, align2::Array{Int,1}, states::Array{Int,1})
   states1 = Int[]
   states2 = Int[]
@@ -204,6 +211,7 @@ function getsequencestates(align1::Array{Int,1}, align2::Array{Int,1}, states::A
   return states1, states2
 end
 
+export getaminoacidalignment
 function getaminoacidalignment(seq1::Sequence, align1::Array{Int,1})
   s1 = ""
   index = 1
@@ -219,6 +227,7 @@ function getaminoacidalignment(seq1::Sequence, align1::Array{Int,1})
   return s1
 end
 
+export getssalignment
 function getssalignment(seq1::Sequence, align1::Array{Int,1})
   s1 = ""
   index = 1
@@ -234,6 +243,7 @@ function getssalignment(seq1::Sequence, align1::Array{Int,1})
   return s1
 end
 
+export PriorDistribution
 type PriorDistribution
     lambdaprior::Gamma
     muprior::Gamma
@@ -250,6 +260,7 @@ type PriorDistribution
     end
 end
 
+export logprior
 function logprior(prior::PriorDistribution, pairparams::PairParameters)
       ll = 0.0
       ll += logpdf(prior.lambdaprior, pairparams.lambda)
@@ -267,6 +278,7 @@ function logprior(prior::PriorDistribution, samples::Array{SequencePairSample,1}
   return ll
 end
 
+export get_alignment
 function get_alignment(sequence_with_gaps::AbstractString)
   align = Int[]
   c = 1
@@ -281,6 +293,7 @@ function get_alignment(sequence_with_gaps::AbstractString)
   return align
 end
 
+export load_sequences_and_alignments
 function load_sequences_and_alignments(datafile)
   f = open(datafile);
   line = 0
@@ -343,6 +356,7 @@ end
 
 OBSERVED_DATA = 0
 MISSING_DATA = 1
+export masksequences
 function masksequences(seq1::Sequence, seq2::Sequence, mask::Array{Int,1})
   newseq1 = Sequence(seq1)
   newseq2 = Sequence(seq2)
@@ -356,6 +370,7 @@ function masksequences(seq1::Sequence, seq2::Sequence, mask::Array{Int,1})
       newseq1.phi_error[i] = -1000.0
       newseq1.psi_error[i] = -1000.0
     end
+    newseq1.ss[i] = 0
   end
   for i=1:newseq2.length
     if mask[3] == MISSING_DATA
@@ -367,6 +382,7 @@ function masksequences(seq1::Sequence, seq2::Sequence, mask::Array{Int,1})
       newseq2.phi_error[i] = -1000.0
       newseq2.psi_error[i] = -1000.0
     end
+    newseq2.ss[i] = 0
   end
 
   return newseq1, newseq2
