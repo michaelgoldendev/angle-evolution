@@ -1,8 +1,8 @@
-include("AAPairNode.jl")
-include("DiffusionNode.jl")
-include("SwitchingNode.jl")
-include("SecondaryStructureNode.jl")
-include("Sequence.jl")
+#include("AAPairNode.jl")
+#include("DiffusionNode.jl")
+#include("SwitchingNode.jl")
+#include("SecondaryStructureNode.jl")
+#include("Sequence.jl")
 
 export ObservationNode
 

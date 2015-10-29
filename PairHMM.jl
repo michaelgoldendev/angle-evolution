@@ -1,13 +1,9 @@
 using Formatting
 using Distributions
+using DataStructures
+using UtilsModule
+using NodesModule
 
-include("UtilsModule.jl")
-importall UtilsModule
-
-include("NodesModule.jl")
-importall NodesModule
-
- include("AlignmentUtils.jl")
 #=
   Pkg.add("DataStructures")
   Pkg.add("Formatting")
@@ -132,7 +128,7 @@ function tkf92(nsamples::Int, rng::AbstractRNG, seqpair::SequencePair, pairparam
   startj = 0
   endj  = 0
   if partialAlignment && fixAlignment && !fixStates
-    width = 90
+    width = 75
     starti = rand(1:n)
     endi = starti+width
     startj = starti + rand(-60:60)
@@ -165,7 +161,7 @@ function tkf92(nsamples::Int, rng::AbstractRNG, seqpair::SequencePair, pairparam
     samples = SequencePairSample[]
     for i=1:nsamples
       pairsample = SequencePairSample(seqpair, pairparams)
-      tkf92sample(obsnodes, seqpair, pairparams.t, rng,cache, hmmparameters,n,m, END, sample(rng, choice), pairsample.align1,pairsample.align2, pairsample.states, fixAlignment, cornercut, fixStates, alignmentpath, starti, endi, startj, endj)
+      tkf92sample(obsnodes, seqpair, pairparams.t, rng,cache, hmmparameters,n,m, END, UtilsModule.sample(rng, choice), pairsample.align1,pairsample.align2, pairsample.states, fixAlignment, cornercut, fixStates, alignmentpath, starti, endi, startj, endj)
       push!(samples, pairsample)
     end
 
@@ -479,7 +475,7 @@ function mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::Abstrac
   logll = Float64[]
   for i=1:niter
     currentiter = citer + i - 1
-    move = sample(rng, moveWeights)
+    move = UtilsModule.sample(rng, moveWeights)
     if move == 1
       currentll, current_samples = tkf92(nsamples, rng, seqpair, current, modelparams, cornercut)
       current_sample = current_samples[end]
@@ -519,8 +515,10 @@ function mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::Abstrac
       currentll, dummy = tkf92(0, rng, seqpair, current, modelparams, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
       logAccept!(logger, "partialalignment")
     elseif move >= 4
-      current_sample = gibbssampling(rng, current_sample, modelparams)
-      currentll, dummy = tkf92(0, rng, seqpair, current, modelparams, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
+      if rand(rng) < 0.5
+        current_sample = gibbssampling(rng, current_sample, modelparams)
+        currentll, dummy = tkf92(0, rng, seqpair, current, modelparams, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
+      end
       movename = ""
       propratio = 0.0
       if move == 4
@@ -546,8 +544,8 @@ function mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::Abstrac
         movename = "r"
       elseif move == 7
         sigma = 0.02
-        movename = "t0.02"
-        if rand(rng) < 0.70
+        movename = "t0.01"
+        if rand(rng) < 0.7
           sigma = 0.1
           movename = "t0.1"
         end
@@ -601,7 +599,7 @@ function mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::Abstrac
     close(mcmcout)
     close(alignout)
 
-    write(acceptanceout, string(list(logger),"\n"))
+    write(acceptanceout, string(UtilsModule.list(logger),"\n"))
     close(acceptanceout)
   end
 
@@ -680,6 +678,26 @@ function mlalignment(seqpair::SequencePair, modelparams::ModelParameters, corner
   return ll, mlsample
 end
 
+function count_kmers(samples::Array{SequencePairSample,1}, k::Int)
+  count = counter(AbstractString)
+  for sample in samples
+    len = length(sample.states)-k+1
+    for i=1:len
+      kmer = string(join(sample.states[i:(i+k-1)], "-"))
+      push!(count, kmer)
+    end
+  end
+
+  out = open("count.txt", "w")
+  for key in keys(count)
+        sp = split(key,"-")
+        central = sp[(k+1)/2]
+        write(out,string(key,"\t",central,"\t",count[key],"\n"))
+  end
+  close(out)
+  #println(count)
+end
+
 function train()
   starttime = now()
 
@@ -695,16 +713,16 @@ function train()
   fixInputAlignments = false
 
   #inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data.txt"))[1:50]
-  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse.txt"))[1:20]
+  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse.txt"))
   pairs = SequencePair[sample.seqpair for sample in inputsamples]
 
   println("N=",length(pairs))
   println("N=",length(pairs))
 
   mcmciter = 100
-  samplerate = 20
+  samplerate = 5
 
-  numHiddenStates = 4
+  numHiddenStates = 32
 
   freeParameters = 6*numHiddenStates + (numHiddenStates-1) + (numHiddenStates*numHiddenStates - numHiddenStates) + numHiddenStates*19
   if useswitching
@@ -729,6 +747,8 @@ function train()
     push!(obsnodes, ObservationNode())
     obsnodes[h].usesecondarystructure = usesecondarystructure
     obsnodes[h].useswitching = useswitching
+    obsnodes[h].switching.ss_r1.ctmc.enabled = usesecondarystructure
+    obsnodes[h].switching.ss_r2.ctmc.enabled = usesecondarystructure
     if useswitching
       v = rand(Float64,20)
       v /= sum(v)
@@ -736,9 +756,9 @@ function train()
       v = rand(Float64,20)
       v /= sum(v)
       set_parameters(obsnodes[h].switching.aapairnode_r2, v, 1.0)
-      set_parameters(obsnodes[h].switching.diffusion_r1, 0.1, rand()*2.0*pi - pi, 1.0, 0.1, rand()*2.0*pi - pi, 1.0, 1.0, 1.0)
-      set_parameters(obsnodes[h].switching.diffusion_r2, 0.1, rand()*2.0*pi - pi, 1.0, 0.1, rand()*2.0*pi - pi, 1.0, 1.0, 1.0)
-      obsnodes[h].switching.alpha = 5.0 + 20.0*rand(rng)
+      set_parameters(obsnodes[h].switching.diffusion_r1, 0.1+0.1*rand(), rand()*2.0*pi - pi, 0.5 + 1.0*rand(), 0.1+0.1*rand(), rand()*2.0*pi - pi, 0.5 + 1.0*rand(), 1.0, 1.0)
+      set_parameters(obsnodes[h].switching.diffusion_r2, 0.1+0.1*rand(), rand()*2.0*pi - pi, 0.5 + 1.0*rand(), 0.1+0.1*rand(), rand()*2.0*pi - pi, 0.5 + 1.0*rand(), 1.0, 1.0)
+      obsnodes[h].switching.alpha = 0.25 + 0.75*rand(rng)
       obsnodes[h].switching.pi_r1 = rand(rng)
     else
       v = rand(Float64,20)
@@ -806,7 +826,11 @@ function train()
   println("Initialised")
 
   mkpath("logs/")
-  mlwriter = open(string("logs/ml",numHiddenStates,".log"), "w")
+  mlfilename = string("logs/ml",numHiddenStates,".log")
+  if useswitching
+    mlfilename = string("logs/ml",numHiddenStates,"_switching.log")
+  end
+  mlwriter = open(mlfilename, "w")
   write(mlwriter, "iter\tll\tcount\tavgll\tnumFreeParameters\tAIC\tlambda_shape\tlambda_scale\tmu_shape\tmu_scale\tr_alpha\tr_beta\tt_shape\tt_scale\ttime_per_iter\n")
 
 
@@ -839,6 +863,8 @@ function train()
           push!(samples, ks)
         end
       end
+
+      count_kmers(samples,3)
     else
       for k=1:length(pairs)
         it, newparams, ksamples, expll = mcmc_sequencepair(currentiter, mcmciter, samplerate,  MersenneTwister(abs(rand(Int))), current_samples[k], modelparams, cornercut, fixInputAlignments && inputsamples[k].aligned)
@@ -982,7 +1008,8 @@ function sample_missing_values(rng::AbstractRNG, obsnodes::Array{ObservationNode
       psit = seqpair.seq2.psi[b]
       sst = seqpair.seq2.ss[b]
     end
-    x0, xt, phi, psi  = sample(obsnodes[h], rng, x0, xt, phi0,phit,psi0,psit, ss0, sst, t)
+
+    x0, xt, phi, psi, ss0, sst  = NodesModule.sample(obsnodes[h], rng, x0, xt, phi0,phit,psi0,psit, ss0, sst, t)
    # println(h, x0, xt, phi0,phit,psi0,psit, t)
     #phi,psi = sample_phi_psi(obsnodes[h].diffusion, rng, phi0,phit,psi0,psit,t)
     if a > 0
@@ -1017,8 +1044,8 @@ function test()
   #modelfile = "models/pairhmm12_noswitching.jls"
   #modelfile = "models/pairhmm8_noswitching.jls"
 
-  modelfile = "models/pairhmm12_switching_n120.jls"
-  outputdir = "logs/pairhmm12_switching_n120/"
+  modelfile = "models/pairhmm32_switching_n304.jls"
+  outputdir = "logs/pairhmm32_switching_n304"
 
   fixAlignment = false
   cornercut = 75
@@ -1036,6 +1063,13 @@ function test()
 
   println("use_switching", obsnodes[1].useswitching)
   println("H=", numHiddenStates)
+
+  set_parameters(obsnodes[1].switching.aapairnode_r1, 0.001)
+  for k=1:length(obsnodes)
+    obsnode = obsnodes[k]
+    println(k,"\t",obsnode.switching.alpha,"\t",obsnode.switching.pi_r1)
+  end
+  exit()
 
   mkpath(outputdir)
   outfile = open(string(outputdir, "benchmarks",numHiddenStates,".txt"), "w")

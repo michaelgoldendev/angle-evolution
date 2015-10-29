@@ -9,8 +9,13 @@ ProfileView.svgwrite("profile_results.svg")
 profilewriter = open("profile.log", "w")
 Profile.print(profilewriter)
 =#
+#push!(LOAD_PATH, pwd())
+#println(pwd())
 
-addprocs(4)
+addprocs(CPU_CORES)
+
+@everywhere include("UtilsModule.jl")
+@everywhere include("NodesModule.jl")
 @everywhere include("PairHMM.jl")
 train()
 
@@ -20,7 +25,11 @@ train()
 #include("PairHMM.jl")
 #mlalign()
 
+#=
+include("UtilsModule.jl")
+include("NodesModule.jl")
+include("PairHMM.jl")
 
-#include("PairHMM.jl")
-#test()
+test()
+=#
 #train()

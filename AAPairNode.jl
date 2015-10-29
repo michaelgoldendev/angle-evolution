@@ -146,12 +146,12 @@ function sample(node::AAPairNode, rng::AbstractRNG, x0::Int, xt::Int, t::Float64
   b = xt
   set_parameters(node, t)
   if a <= 0 && b <= 0
-    a = sample(rng, node.eqfreqs)
-    b = sample(rng, node.Pt[a,:])
+    a = UtilsModule.sample(rng, node.eqfreqs)
+    b = UtilsModule.sample(rng, node.Pt[a,:])
   elseif a <= 0
-    a = sample(rng, node.Pt[b,:])
+    a = UtilsModule.sample(rng, node.Pt[b,:])
   elseif b <= 0
-    b = sample(rng, node.Pt[a,:])
+    b = UtilsModule.sample(rng, node.Pt[a,:])
   end
   return a,b
 end

@@ -1,7 +1,6 @@
-using Distributions
-
 include("VonMisesDensity.jl")
 
+export aminoacids
 aminoacids = "ACDEFGHIKLMNPQRSTVWY"
 sschars = "HBEGITSC"
 sscharsshort = "HSC"
@@ -126,7 +125,7 @@ type SequencePairSample
   aligned::Bool
 
   function SequencePairSample()
-     align1 = Int[]
+    align1 = Int[]
     align2 = Int[]
     states = Int[]
     return new(SequencePair(), PairParameters(params), align1, align2, states, false)
@@ -354,7 +353,9 @@ function load_sequences_and_alignments(datafile)
   return pairs
 end
 
+export OBSERVED_DATA
 OBSERVED_DATA = 0
+export MISSING_DATA
 MISSING_DATA = 1
 export masksequences
 function masksequences(seq1::Sequence, seq2::Sequence, mask::Array{Int,1})
@@ -387,3 +388,5 @@ function masksequences(seq1::Sequence, seq2::Sequence, mask::Array{Int,1})
 
   return newseq1, newseq2
 end
+
+include("AlignmentUtils.jl")

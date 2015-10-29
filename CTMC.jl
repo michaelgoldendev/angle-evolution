@@ -12,6 +12,7 @@ type CTMC
   t::Float64
   Pt::Array{Float64,2}
   logPt::Array{Float64,2}
+  enabled::Bool
 
   function CTMC(eqfreqs::Array{Float64,1}, S::Array{Float64,2}, t::Float64)
     n = length(eqfreqs)
@@ -33,7 +34,7 @@ type CTMC
     Vi = inv(V)
     Pt = V*Diagonal(exp(D*t))*Vi
     logPt = log(Pt)
-    return new(eqfreqs, log(eqfreqs), S, Q, D,V, Vi, t, Pt, logPt)
+    return new(eqfreqs, log(eqfreqs), S, Q, D,V, Vi, t, Pt, logPt, true)
   end
 end
 
@@ -100,6 +101,10 @@ end
 
 export get_data_lik
 function get_data_lik(node::CTMC, x0::Int)
+  if !node.enabled
+    return 0.0
+  end
+
   if x0 > 0
     return node.logeqfreqs[x0]
   else
@@ -108,6 +113,10 @@ function get_data_lik(node::CTMC, x0::Int)
 end
 
 function get_data_lik(node::CTMC, x0::Int, xt::Int, t::Float64)
+  if !node.enabled
+    return 0.0
+  end
+
   if x0 > 0 && xt > 0
     set_parameters(node, t)
     return node.logeqfreqs[x0] + node.logPt[x0,xt]
@@ -122,16 +131,20 @@ end
 
 export sample
 function sample(node::CTMC, rng::AbstractRNG, x0::Int, xt::Int, t::Float64)
+  if !node.enabled
+    return 0,0
+  end
+
   a = x0
   b = xt
   if a <= 0 && b <= 0
     set_parameters(node, t)
-    a = sample(rng, node.eqfreqs)
-    b = sample(rng, node.Pt[a,:])
+    a = UtilsModule.sample(rng, node.eqfreqs)
+    b = UtilsModule.sample(rng, node.Pt[a,:])
   elseif a <= 0
-    a = sample(rng, node.Pt[b,:])
+    a = UtilsModule.sample(rng, node.Pt[b,:])
   elseif b <= 0
-    b = sample(rng, node.Pt[a,:])
+    b = UtilsModule.sample(rng, node.Pt[a,:])
   end
   return a,b
 end
