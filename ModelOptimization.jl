@@ -44,6 +44,9 @@ function switchopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array
   localObjectiveFunction = ((param, grad) -> switchll(param, h, samples,seqindices,hindices, obsnodes, store))
   opt = Opt(:LN_COBYLA, 60)
   lower = zeros(Float64, 60)
+  for i=1:40
+    lower[i] = 1e-10
+  end
   lower[41] = 1e-5
   lower[42] = -1000000.0
   lower[43] = 1e-5
@@ -60,6 +63,9 @@ function switchopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array
 
   lower[53] = 1e-3
   lower[54] = 0.0
+  for i=55:60
+    lower[i] = 1e-10
+  end
   lower_bounds!(opt, lower)
 
   upper = ones(Float64, 60)
@@ -186,7 +192,7 @@ function ssoptrates(samples::Array{SequencePairSample,1}, obsnodes::Array{Observ
   upper = ones(Float64, 3)*200.0
   upper_bounds!(opt, upper)
   xtol_rel!(opt,1e-4)
-  maxeval!(opt, 200)
+  maxeval!(opt, 100)
   max_objective!(opt, localObjectiveFunction)
   (minf,minx,ret) = optimize(opt, Float64[obsnodes[1].ss.ctmc.S[1,2], obsnodes[1].ss.ctmc.S[1,3], obsnodes[1].ss.ctmc.S[2,3]])
 
@@ -195,7 +201,7 @@ function ssoptrates(samples::Array{SequencePairSample,1}, obsnodes::Array{Observ
       set_parameters(obsnode.switching.ss_r1, minx[1], minx[2], minx[3], 1.0)
       set_parameters(obsnode.switching.ss_r2, minx[1], minx[2], minx[3], 1.0)
   end
-  println("ZZZ", minx)
+
   return minx
 end
 
@@ -239,7 +245,7 @@ function optimize_diffusion_branch_scale(samples::Array{SequencePairSample,1}, o
   upper = ones(Float64, 1)*1e5
   upper_bounds!(opt, upper)
   xtol_rel!(opt,1e-4)
-  maxeval!(opt, 200)
+  maxeval!(opt, 100)
   max_objective!(opt, localObjectiveFunction)
   (minf,minx,ret) = optimize(opt, Float64[obsnodes[1].branch_scale])
 

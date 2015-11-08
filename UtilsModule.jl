@@ -1,3 +1,6 @@
+using DataStructures
+using Formatting
+
 module UtilsModule
   include("AcceptanceLogger.jl")
   include("AngleUtils.jl")

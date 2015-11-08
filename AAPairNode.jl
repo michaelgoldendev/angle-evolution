@@ -31,35 +31,44 @@ end
 
 export set_parameters
 function set_parameters(node::AAPairNode, eqfreqs::Array{Float64, 1},  S::Array{Float64,2}, t::Float64)
-  node.eqfreqs = eqfreqs
-  node.logeqfreqs = log(eqfreqs)
-  node.S = S
-  node.Q = zeros(Float64,20,20)
-  for i=1:20
-    for j=1:20
-      node.Q[i,j] = S[i,j]*eqfreqs[j]
-    end
-  end
-  for i=1:20
-    node.Q[i,i] = 0.0
-    for j=1:20
-      if i != j
-        node.Q[i,i] -= node.Q[i,j]
+  if 0.999 <= sum(eqfreqs) <= 1.001
+    node.eqfreqs = eqfreqs
+    node.logeqfreqs = log(eqfreqs)
+    node.S = S
+    node.Q = zeros(Float64,20,20)
+    for i=1:20
+      for j=1:20
+        node.Q[i,j] = S[i,j]*eqfreqs[j]
       end
     end
-  end
+    for i=1:20
+      node.Q[i,i] = 0.0
+      for j=1:20
+        if i != j
+          node.Q[i,i] -= node.Q[i,j]
+        end
+      end
+    end
 
-  node.D, node.V = eig(node.Q)
-  node.Vi = inv(node.V)
-  node.Pt = node.V*Diagonal(exp(node.D*t))*node.Vi
-  for i=1:20
-    for j=1:20
-      if node.Pt[i,j] > 0.0
-        node.logPt[i,j] = log(node.Pt[i,j])
-      else
-        node.logPt[i,j] = -1e10
-        node.Pt[i,j] = 0.0
+    try
+      node.D, node.V = eig(node.Q)
+      node.Vi = inv(node.V)
+      node.Pt = node.V*Diagonal(exp(node.D*t))*node.Vi
+      for i=1:20
+        for j=1:20
+          if node.Pt[i,j] > 0.0
+            node.logPt[i,j] = log(node.Pt[i,j])
+          else
+            node.logPt[i,j] = -1e10
+            node.Pt[i,j] = 0.0
+          end
+        end
       end
+    catch e
+      println(eqfreqs)
+      println(node.Q)
+      println(e)
+      #exit()
     end
   end
 end

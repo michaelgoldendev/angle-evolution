@@ -76,18 +76,27 @@ end
 
 function get_data_lik(node::DiffusionNode, phi_x0::Float64, psi_x0::Float64, phi_xt::Float64, psi_xt::Float64, t2::Float64)
   t = t2*node.branch_scale
-  mut_phi::Float64 = node.mu_phi + 2.0*atan(tan((phi_x0-node.mu_phi)/2.0)*exp(-node.alpha_phi*t))
-	kt_phi::Float64  = (2.0*node.alpha_phi)/(node.sigma_phi*node.sigma_phi*(1.0-exp(-2.0*node.alpha_phi*t)))
+
   phi_ll = 0.0
   if phi_x0 > -100.0 && phi_xt > -100.0
+    mut_phi::Float64 = node.mu_phi + 2.0*atan(tan((phi_x0-node.mu_phi)/2.0)*exp(-node.alpha_phi*t))
+	  kt_phi::Float64  = (2.0*node.alpha_phi)/(node.sigma_phi*node.sigma_phi*(1.0-exp(-2.0*node.alpha_phi*t)))
     phi_ll = get_data_lik_phi(node, phi_x0) + logdensity(node.vm_phi, phi_xt, mut_phi, min(700.0, kt_phi))
+  elseif phi_x0 > -100.0
+    phi_ll = get_data_lik_phi(node, phi_x0)
+  elseif phi_xt > -100.0
+    phi_ll = get_data_lik_phi(node, phi_xt)
   end
 
-  mut_psi::Float64 = node.mu_psi + 2.0*atan(tan((psi_x0-node.mu_psi)/2.0)*exp(-node.alpha_psi*t))
-	kt_psi::Float64  = (2.0*node.alpha_psi)/(node.sigma_psi*node.sigma_psi*(1.0-exp(-2.0*node.alpha_psi*t)))
   psi_ll = 0.0
   if psi_x0 > -100.0 && psi_xt > -100.0
+    mut_psi::Float64 = node.mu_psi + 2.0*atan(tan((psi_x0-node.mu_psi)/2.0)*exp(-node.alpha_psi*t))
+    kt_psi::Float64  = (2.0*node.alpha_psi)/(node.sigma_psi*node.sigma_psi*(1.0-exp(-2.0*node.alpha_psi*t)))
     psi_ll = get_data_lik_psi(node, psi_x0) + logdensity(node.vm_psi, psi_xt, mut_psi, min(700.0, kt_psi ))
+  elseif psi_x0 > -100.0
+    psi_ll = get_data_lik_psi(node, psi_x0)
+  elseif psi_xt > -100.0
+    psi_ll = get_data_lik_psi(node, psi_xt)
   end
 
   return phi_ll + psi_ll

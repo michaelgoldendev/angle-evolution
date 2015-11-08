@@ -394,7 +394,7 @@ function tkf92forward(obsnodes::Array{ObservationNode,1}, seqpair::SequencePair,
   return sum
 end
 
-function gibbssampling(rng::AbstractRNG, current::SequencePairSample, modelparams::ModelParameters)
+function gibbssampling(rng::AbstractRNG, current::SequencePairSample, modelparams::ModelParameters, repeat::Int=1)
   obsnodes = modelparams.obsnodes
   numHiddenStates = modelparams.numHiddenStates
   hmminitprobs = modelparams.hmminitprobs
@@ -406,44 +406,48 @@ function gibbssampling(rng::AbstractRNG, current::SequencePairSample, modelparam
   align2 = current.align2
   choice = zeros(Float64, numHiddenStates)
   #println("A",current.states)
-  for a=1:len
-    i = align1[a]
-    j = align2[a]
-    datalik = -Inf
-    for h=1:numHiddenStates
-      if i > 0 && j > 0
-        datalik = get_data_lik(obsnodes[h], seqpair.seq1, seqpair.seq2, i,j, t)
-      elseif i > 0
-        datalik = get_data_lik_x0(obsnodes[h], seqpair.seq1, i, t)
-      elseif j >0
-        datalik = get_data_lik_xt(obsnodes[h], seqpair.seq2, j, t)
+  for r=1:repeat
+    for a=1:len
+      i = align1[a]
+      j = align2[a]
+      datalik = -Inf
+      for h=1:numHiddenStates
+        if i > 0 && j > 0
+          datalik = get_data_lik(obsnodes[h], seqpair.seq1, seqpair.seq2, i,j, t)
+        elseif i > 0
+          datalik = get_data_lik_x0(obsnodes[h], seqpair.seq1, i, t)
+        elseif j >0
+          datalik = get_data_lik_xt(obsnodes[h], seqpair.seq2, j, t)
+        end
+        transloglik = 0.0
+        if a == 1
+          transloglik += log(hmminitprobs[h])
+        else
+          prevh = current.states[a-1]
+          transloglik += log(hmmtransprobs[prevh,h])
+        end
+        if a != len
+          nexth = current.states[a+1]
+          transloglik += log(hmmtransprobs[h,nexth])
+        end
+        choice[h] = datalik+transloglik
       end
-      transloglik = 0.0
-      if a == 1
-        transloglik += log(hmminitprobs[h])
-      else
-        prevh = current.states[a-1]
-        transloglik += log(hmmtransprobs[prevh,h])
-      end
-      if a != len
-        nexth = current.states[a+1]
-        transloglik += log(hmmtransprobs[h,nexth])
-      end
-      choice[h] = datalik+transloglik
+      current.states[a] = GumbelSample(rng, choice)
     end
-    current.states[a] = GumbelSample(rng, choice)
   end
-  #println("B",current.states)
+
   return current
 end
 
-function mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::AbstractRNG, initialSample::SequencePairSample, modelparams::ModelParameters, cornercut::Int=100, fixAlignment::Bool=false, writeoutput::Bool=false, outputdir::AbstractString="")
+function mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::AbstractRNG, initialSample::SequencePairSample, modelparams::ModelParameters, cornercut::Int=100, fixAlignmentIn::Bool=false, writeoutput::Bool=false, outputdir::AbstractString="")
   burnin = niter / 2
   seqpair = initialSample.seqpair
   pairparams = initialSample.params
   current = PairParameters(pairparams)
   proposed = PairParameters(pairparams)
   current_sample = initialSample
+
+  fixAlignment = fixAlignmentIn || initialSample.seqpair.single
 
   mode = "a"
   if citer == 0
@@ -462,7 +466,7 @@ function mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::Abstrac
   samples = SequencePairSample[]
 
   logger = AcceptanceLogger()
-  moveWeights = Float64[0.0, 0.0, 40.0, 400.0, 400.0, 400.0, 400.0]
+  moveWeights = Float64[0.0, 0.0, 1.0, 40.0, 40.0, 40.0, 40.0]
   if fixAlignment
     moveWeights = Float64[0.0, 40.0, 0.0, 400.0, 400.0, 200.0, 400.0]
   end
@@ -519,61 +523,63 @@ function mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::Abstrac
         current_sample = gibbssampling(rng, current_sample, modelparams)
         currentll, dummy = tkf92(0, rng, seqpair, current, modelparams, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
       end
-      movename = ""
-      propratio = 0.0
-      if move == 4
-        sigma = 0.2
-        d1 = Truncated(Normal(current.lambda, sigma), 0.0, Inf)
-        proposed.lambda = rand(d1)
-        d2 = Truncated(Normal(proposed.lambda, sigma), 0.0, Inf)
-        propratio = logpdf(d2, current.lambda) - logpdf(d1, proposed.lambda)
-        movename = "lambda"
-      elseif move == 5
-        sigma = 0.15
-        d1 = Truncated(Normal(current.ratio, sigma), 0.0, 1.0)
-        proposed.ratio = rand(d1)
-        d2 = Truncated(Normal(proposed.ratio, sigma), 0.0, 1.0)
-        propratio = logpdf(d2, current.ratio) - logpdf(d1, proposed.ratio)
-        movename = "ratio"
-      elseif move == 6
-        sigma = 0.1
-        d1 = Truncated(Normal(current.r, sigma), 0.0, 1.0)
-        proposed.r = rand(d1)
-        d2 = Truncated(Normal(proposed.r, sigma), 0.0, 1.0)
-        propratio = logpdf(d2, current.r) - logpdf(d1, proposed.r)
-        movename = "r"
-      elseif move == 7
-        sigma = 0.02
-        movename = "t0.01"
-        if rand(rng) < 0.7
+      if !current_sample.seqpair.single
+        movename = ""
+        propratio = 0.0
+        if move == 4
+          sigma = 0.2
+          d1 = Truncated(Normal(current.lambda, sigma), 0.0, Inf)
+          proposed.lambda = rand(d1)
+          d2 = Truncated(Normal(proposed.lambda, sigma), 0.0, Inf)
+          propratio = logpdf(d2, current.lambda) - logpdf(d1, proposed.lambda)
+          movename = "lambda"
+        elseif move == 5
+          sigma = 0.15
+          d1 = Truncated(Normal(current.ratio, sigma), 0.0, 1.0)
+          proposed.ratio = rand(d1)
+          d2 = Truncated(Normal(proposed.ratio, sigma), 0.0, 1.0)
+          propratio = logpdf(d2, current.ratio) - logpdf(d1, proposed.ratio)
+          movename = "ratio"
+        elseif move == 6
           sigma = 0.1
-          movename = "t0.1"
-        end
-        d1 = Truncated(Normal(current.t, sigma), 0.0, Inf)
-        proposed.t = rand(d1)
-        d2 = Truncated(Normal(proposed.t, sigma), 0.0, Inf)
-        propratio = logpdf(d2, current.t) - logpdf(d1, proposed.t)
-      end
-
-      proposed.mu = proposed.lambda/proposed.ratio
-      if(proposed.lambda > 0.0 && proposed.mu > 0.0 && proposed.lambda < proposed.mu && 0.0001 < proposed.ratio < 1.0 && 0.0 < proposed.r < 1.0 && proposed.t > 0.0)
-        proposedll, proposed_samples = tkf92(nsamples, rng, seqpair, proposed, modelparams, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
-
-        a = rand(rng)
-        if(exp(proposedll-currentll+propratio) > a)
-          currentll = proposedll
-          current = PairParameters(proposed)
-          current_sample = proposed_samples[end]
-          for c=1:length(proposed_samples)
-            current_samples[c] = proposed_samples[c]
+          d1 = Truncated(Normal(current.r, sigma), 0.0, 1.0)
+          proposed.r = rand(d1)
+          d2 = Truncated(Normal(proposed.r, sigma), 0.0, 1.0)
+          propratio = logpdf(d2, current.r) - logpdf(d1, proposed.r)
+          movename = "r"
+        elseif move == 7
+          sigma = 0.02
+          movename = "t0.01"
+          if rand(rng) < 0.7
+            sigma = 0.1
+            movename = "t0.1"
           end
-          logAccept!(logger, movename)
+          d1 = Truncated(Normal(current.t, sigma), 0.0, Inf)
+          proposed.t = rand(d1)
+          d2 = Truncated(Normal(proposed.t, sigma), 0.0, Inf)
+          propratio = logpdf(d2, current.t) - logpdf(d1, proposed.t)
+        end
+
+        proposed.mu = proposed.lambda/proposed.ratio
+        if(proposed.lambda > 0.0 && proposed.mu > 0.0 && proposed.lambda < proposed.mu && 0.0001 < proposed.ratio < 1.0 && 0.0 < proposed.r < 1.0 && proposed.t > 0.0)
+          proposedll, proposed_samples = tkf92(nsamples, rng, seqpair, proposed, modelparams, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
+
+          a = rand(rng)
+          if(exp(proposedll-currentll+propratio) > a)
+            currentll = proposedll
+            current = PairParameters(proposed)
+            current_sample = proposed_samples[end]
+            for c=1:length(proposed_samples)
+              current_samples[c] = proposed_samples[c]
+            end
+            logAccept!(logger, movename)
+          else
+            proposed = PairParameters(current)
+            logReject!(logger, movename)
+          end
         else
-          proposed = PairParameters(current)
           logReject!(logger, movename)
         end
-      else
-        logReject!(logger, movename)
       end
     end
 
@@ -678,7 +684,7 @@ function mlalignment(seqpair::SequencePair, modelparams::ModelParameters, corner
   return ll, mlsample
 end
 
-function count_kmers(samples::Array{SequencePairSample,1}, k::Int)
+function count_kmers(samples::Array{SequencePairSample,1}, k::Int, countfilename)
   count = counter(AbstractString)
   for sample in samples
     len = length(sample.states)-k+1
@@ -688,10 +694,10 @@ function count_kmers(samples::Array{SequencePairSample,1}, k::Int)
     end
   end
 
-  out = open("count.txt", "w")
+  out = open(countfilename, "w")
   for key in keys(count)
         sp = split(key,"-")
-        central = sp[(k+1)/2]
+        central = sp[round(Int64, (k+1)/2)]
         write(out,string(key,"\t",central,"\t",count[key],"\n"))
   end
   close(out)
@@ -713,16 +719,15 @@ function train()
   fixInputAlignments = false
 
   #inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data.txt"))[1:50]
-  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse.txt"))
+  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse2.txt"))
   pairs = SequencePair[sample.seqpair for sample in inputsamples]
 
   println("N=",length(pairs))
-  println("N=",length(pairs))
 
-  mcmciter = 100
-  samplerate = 5
+  mcmciter = 75
+  samplerate = 4
 
-  numHiddenStates = 32
+  numHiddenStates = 25
 
   freeParameters = 6*numHiddenStates + (numHiddenStates-1) + (numHiddenStates*numHiddenStates - numHiddenStates) + numHiddenStates*19
   if useswitching
@@ -864,7 +869,11 @@ function train()
         end
       end
 
-      count_kmers(samples,3)
+      countfilename = string("logs/count",numHiddenStates,".log")
+      if useswitching
+        countfilename = string("logs/count",numHiddenStates,"_switching.log")
+      end
+      count_kmers(samples,3,countfilename)
     else
       for k=1:length(pairs)
         it, newparams, ksamples, expll = mcmc_sequencepair(currentiter, mcmciter, samplerate,  MersenneTwister(abs(rand(Int))), current_samples[k], modelparams, cornercut, fixInputAlignments && inputsamples[k].aligned)
@@ -932,7 +941,6 @@ function train()
 
     if usesecondarystructure
       minsss = ssoptrates(samples, obsnodes)
-      println("XXX",minsss)
       for obsnode in obsnodes
         set_parameters(obsnode.ss, minsss[1], minsss[2], minsss[3], 1.0)
         set_parameters(obsnode.switching.ss_r1, minsss[1], minsss[2], minsss[3], 1.0)
@@ -942,10 +950,21 @@ function train()
 
     optimize_diffusion_branch_scale(samples,obsnodes)
 
+    #=
+   =#
 
     hmminitprobs, hmmtransprobs = hmmopt(samples,numHiddenStates)
     prior = prioropt(samples, prior)
     mstep_elapsed = toc()
+
+
+    tic()
+    for k=1:length(samples)
+      samples[k] = gibbssampling(rng, samples[k], modelparams, 3)
+    end
+    hmminitprobs, hmmtransprobs = hmmopt(samples,numHiddenStates)
+    gibbs_sample_time = toc()
+    print(gibbs_sample_time)
 
 
     println(hmminitprobs,"\n",hmmtransprobs)
@@ -972,7 +991,21 @@ function train()
     close(ser)
 
 
-    write_hiddenstates(modelparams, "logs/hiddenstates.txt")
+    if useswitching
+      hiddenstatesfile = string("logs/hiddenstates",numHiddenStates,"_switching_n",length(pairs),".txt")
+      switchingfile = string("logs/switchingrates",numHiddenStates,"_switching_n",length(pairs),".txt")
+    else
+      hiddenstatesfile = string("logs/hiddenstates",numHiddenStates,"_noswitching_n",length(pairs),".txt")
+      switchingfile = string("logs/switchingrates",numHiddenStates,"_noswitching_n",length(pairs),".txt")
+    end
+    write_hiddenstates(modelparams, hiddenstatesfile)
+
+    switchingout = open(switchingfile,"w")
+    for k=1:length(obsnodes)
+      obsnode = obsnodes[k]
+      write(switchingout, string(k, "\t", obsnode.switching.alpha, "\t", obsnode.switching.pi_r1, "\n"))
+    end
+    close(switchingout)
   end
 end
 
@@ -1033,19 +1066,24 @@ using Gadfly
 using Compose
 using Cairo
 function test()
-  #pairs = load_sequences_and_alignments("data/data.txt")
-  pairs = load_sequences_and_alignments("data/holdout_data.txt")
-  #pairs = load_sequences_and_alignments("data/glob.txt")
-
   srand(98418108751401)
   rng = MersenneTwister(242402531025555)
+
+  #pairs = load_sequences_and_alignments("data/data.txt")
+  pairs = load_sequences_and_alignments("data/holdout_data.txt")
+  #pairs = shuffle!(rng, load_sequences_and_alignments("data/holdout_data_diverse.txt"))
+  #pairs = load_sequences_and_alignments("data/glob.txt")
+
+
   #modelfile = "models/pairhmm4_switching.jls"
   #modelfile = "models/pairhmm8_noswitching.jls"
   #modelfile = "models/pairhmm12_noswitching.jls"
   #modelfile = "models/pairhmm8_noswitching.jls"
 
-  modelfile = "models/pairhmm32_switching_n304.jls"
-  outputdir = "logs/pairhmm32_switching_n304"
+  modelfile = "models/pairhmm48_switching_n468.jls"
+  outputdir = "logs/pairhmm48_switching_n468/"
+
+  mkpath(outputdir)
 
   fixAlignment = false
   cornercut = 75
@@ -1059,19 +1097,21 @@ function test()
   hmmtransprobs = modelparams.hmmtransprobs
   numHiddenStates = length(hmminitprobs)
 
-  write_hiddenstates(modelparams, "myhiddenstates.txt")
+  write_hiddenstates(modelparams, string(outputdir, "hiddenstates.txt"))
 
   println("use_switching", obsnodes[1].useswitching)
   println("H=", numHiddenStates)
 
   set_parameters(obsnodes[1].switching.aapairnode_r1, 0.001)
+  switchingout = open(string(outputdir, "switchingrates.txt"),"w")
   for k=1:length(obsnodes)
     obsnode = obsnodes[k]
-    println(k,"\t",obsnode.switching.alpha,"\t",obsnode.switching.pi_r1)
+    write(switchingout, string(k, "\t", obsnode.switching.alpha, "\t", obsnode.switching.pi_r1, "\n"))
   end
-  exit()
+  close(switchingout)
+  println(obsnodes[1].switching.ss_r1.ctmc.S)
+  #exit()
 
-  mkpath(outputdir)
   outfile = open(string(outputdir, "benchmarks",numHiddenStates,".txt"), "w")
   write(outfile, "mask\tphi_homologue\tpsi_homologue\tphi_predicted\tpsi_predicted\n")
 
@@ -1090,7 +1130,7 @@ function test()
 
     samples = ret[3]
     nsamples = length(ret[3])
-    burnin = int(max(1,nsamples/2))
+    burnin = round(Int, max(1,nsamples/2))
     samples = samples[burnin:end]
     filled_pairs = [sample_missing_values(rng, obsnodes, sample) for sample in samples]
 

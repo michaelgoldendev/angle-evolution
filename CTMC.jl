@@ -16,7 +16,9 @@ type CTMC
 
   function CTMC(eqfreqs::Array{Float64,1}, S::Array{Float64,2}, t::Float64)
     n = length(eqfreqs)
-    Q = ones(Float64, n, n)
+    #Q = Diagonal(eqfreqs)*S
+
+    Q = zeros(Float64, n, n)
     for i=1:n
       for j=1:n
         Q[i,j] = S[i,j]*eqfreqs[j]
@@ -40,38 +42,41 @@ end
 
 export set_parameters
 function set_parameters(node::CTMC, eqfreqs::Array{Float64, 1},  S::Array{Float64,2}, t::Float64)
-  node.eqfreqs = eqfreqs
-  node.logeqfreqs = log(eqfreqs)
-  node.S = S
-  n = length(node.eqfreqs)
-  node.Q = zeros(Float64,n,n)
-  for i=1:n
-    for j=1:n
-      node.Q[i,j] = S[i,j]*eqfreqs[j]
-    end
-  end
-  for i=1:n
-    node.Q[i,i] = 0.0
-    for j=1:n
-      if i != j
-        node.Q[i,i] -= node.Q[i,j]
+  if 0.999 <= sum(eqfreqs) <= 1.001
+    node.eqfreqs = eqfreqs
+    node.logeqfreqs = log(eqfreqs)
+    node.S = S
+    n = length(node.eqfreqs)
+    #node.Q = Diagonal(eqfreqs)*S
+    node.Q = zeros(Float64,n,n)
+    for i=1:n
+      for j=1:n
+        node.Q[i,j] = S[i,j]*eqfreqs[j]
       end
     end
-  end
+    for i=1:n
+      node.Q[i,i] = 0.0
+      for j=1:n
+        if i != j
+          node.Q[i,i] -= node.Q[i,j]
+        end
+      end
+    end
 
-  D, V = eig(node.Q)
-  node.D = real(D)
-  node.V = real(V)
-  node.Vi = real(inv(V))
-  node.Pt = node.V*Diagonal(exp(node.D*t))*node.Vi
-  n = length(node.eqfreqs)
-  for i=1:n
-    for j=1:n
-      if node.Pt[i,j] > 0.0
-        node.logPt[i,j] = log(node.Pt[i,j])
-      else
-        node.logPt[i,j] = -1e10
-        node.Pt[i,j] = 0.0
+    D, V = eig(node.Q)
+    node.D = real(D)
+    node.V = real(V)
+    node.Vi = real(inv(V))
+    node.Pt = node.V*Diagonal(exp(node.D*t))*node.Vi
+    n = length(node.eqfreqs)
+    for i=1:n
+      for j=1:n
+        if node.Pt[i,j] > 0.0
+          node.logPt[i,j] = log(node.Pt[i,j])
+        else
+          node.logPt[i,j] = -1e10
+          node.Pt[i,j] = 0.0
+        end
       end
     end
   end

@@ -57,8 +57,11 @@ type Sequence
     inputss =  zeros(Int,len2)
     ssint = zeros(Int,len2)
     for i=1:len2
-      inputss[i] = search(sschars, ss[i])
-      ssint[i] = ssmap[search(sschars, ss[i])]
+      res = search(sschars, ss[i])
+      inputss[i] = res
+      if res > 0
+        ssint[i] = ssmap[res]
+      end
     end
 
     return new(len, s, phi, psi, copy(phi), copy(psi), ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA), inputss, ssint)
@@ -75,17 +78,18 @@ type SequencePair
   seq1::Sequence
   seq2::Sequence
   t::Float64
+  single::Bool
 
   function SequencePair()
-    new(0,Sequence(),Sequence(),1.0)
+    new(0,Sequence(),Sequence(),1.0,false)
   end
 
   function SequencePair(id::Int, seq1::Sequence, seq2::Sequence)
-    return new(id, seq1, seq2, 1.0)
+    return new(id, seq1, seq2, 1.0,false)
   end
 
   function SequencePair(pair::SequencePair)
-    return new(pair.id,pair.seq1, pair.seq2, pair.t)
+    return new(pair.id,pair.seq1, pair.seq2, pair.t,false)
   end
 end
 
@@ -123,28 +127,29 @@ type SequencePairSample
   align2::Array{Int,1}
   states::Array{Int,1}
   aligned::Bool
+  single::Bool
 
   function SequencePairSample()
     align1 = Int[]
     align2 = Int[]
     states = Int[]
-    return new(SequencePair(), PairParameters(params), align1, align2, states, false)
+    return new(SequencePair(), PairParameters(params), align1, align2, states, false, false)
   end
 
   function SequencePairSample(seqpair::SequencePair, params::PairParameters)
     align1 = Int[]
     align2 = Int[]
     states = Int[]
-    return new(seqpair, PairParameters(params), align1, align2, states, false)
+    return new(seqpair, PairParameters(params), align1, align2, states, false, false)
   end
 
    function SequencePairSample(seqpair::SequencePair, align1::Array{Int,1}, align2::Array{Int,1})
     states = Int[]
-    return new(seqpair, PairParameters(), align1, align2, states, false)
+    return new(seqpair, PairParameters(), align1, align2, states, false, false)
   end
 
   function SequencePairSample(sample::SequencePairSample)
-    return new(SequencePair(sample.seqpair), PairParameters(sample.params), copy(sample.align1), copy(sample.align2), copy(sample.states), sample.aligned)
+    return new(SequencePair(sample.seqpair), PairParameters(sample.params), copy(sample.align1), copy(sample.align2), copy(sample.states), sample.aligned, sample.single)
   end
 end
 
@@ -272,7 +277,9 @@ end
 function logprior(prior::PriorDistribution, samples::Array{SequencePairSample,1})
   ll = 0.0
   for sample in samples
-    ll += logprior(prior, sample.params)
+    if !sample.seqpair.single
+      ll += logprior(prior, sample.params)
+    end
   end
   return ll
 end
@@ -299,37 +306,50 @@ function load_sequences_and_alignments(datafile)
   seq1 = ""
   phi1 = Float64[]
   psi1 = Float64[]
-  ss1 = Int[]
+  ss1 = ""
   seq2 = ""
   phi2 = Float64[]
   psi2 = Float64[]
-  ss2 = Int[]
+  ss2 = ""
   align1 = Int[]
   align2 = Int[]
   id = 1
   pairs = SequencePairSample[]
   aligned=false
-  for ln in eachline(f)
-    if ln[1] == '>'
+  for fileline in eachline(f)
+    ln = strip(fileline)
+    if length(ln) > 0 && ln[1] == '>'
       line = 0
     end
 
     if line == 1
-      seq1 = strip(ln)
+      seq1 = ln
     elseif line == 2
-      seq2 = strip(ln)
+      seq2 = ln
     elseif line == 3
-      phi1 = Float64[parse(Float64, s) for s in split(ln, ",")]
+      phi1 = Float64[]
+      if length(ln) > 0
+        phi1 = Float64[parse(Float64, s) for s in split(ln, ",")]
+      end
     elseif line == 4
-      psi1 = Float64[parse(Float64, s) for s in split(ln, ",")]
+      psi1 = Float64[]
+      if length(ln) > 0
+        psi1 = Float64[parse(Float64, s) for s in split(ln, ",")]
+      end
     elseif line == 5
-      phi2 = Float64[parse(Float64, s) for s in split(ln, ",")]
+      phi2 = Float64[]
+      if length(ln) > 0
+        phi2 = Float64[parse(Float64, s) for s in split(ln, ",")]
+      end
     elseif line == 6
-      psi2 = Float64[parse(Float64, s) for s in split(ln, ",")]
+      psi2 = Float64[]
+      if length(ln) > 0
+        psi2 = Float64[parse(Float64, s) for s in split(ln, ",")]
+      end
     elseif line == 7
-      ss1 = strip(ln)
+      ss1 = ln
     elseif line == 8
-      ss2 = strip(ln)
+      ss2 = ln
     elseif line == 9
       align1 = get_alignment(strip(ln))
       aligned = true
@@ -340,11 +360,23 @@ function load_sequences_and_alignments(datafile)
 
 
     if line == 11
-      seqpair = SequencePair(id, Sequence(seq1,phi1,psi1,ss1), Sequence(seq2,phi2,psi2,ss2))
-      id += 1
-      sample = SequencePairSample(seqpair,align1,align2)
-      sample.aligned = aligned
-      push!(pairs, sample)
+      if length(seq2) > 0
+        seqpair = SequencePair(id, Sequence(seq1,phi1,psi1,ss1), Sequence(seq2,phi2,psi2,ss2))
+        id += 1
+        sample = SequencePairSample(seqpair,align1,align2)
+        sample.aligned = aligned
+        push!(pairs, sample)
+      else
+        seq = Sequence(seq1,phi1,psi1,ss1)
+        align1 = Int[i for i=1:seq.length]
+        align2 = zeros(Int,seq.length)
+        seqpair = SequencePair(id, seq, Sequence(0))
+        seqpair.single = true
+        sample = SequencePairSample(seqpair,align1,align2)
+        sample.aligned = true
+        sample.single = true
+        push!(pairs, sample)
+      end
     end
     line += 1
   end
