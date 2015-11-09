@@ -131,7 +131,7 @@ function tkf92(nsamples::Int, rng::AbstractRNG, seqpair::SequencePair, pairparam
     width = 75
     starti = rand(1:n)
     endi = starti+width
-    startj = starti + rand(-60:60)
+    startj = starti + rand(-75:75)
     endj = startj+width
   end
 
@@ -466,9 +466,9 @@ function mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::Abstrac
   samples = SequencePairSample[]
 
   logger = AcceptanceLogger()
-  moveWeights = Float64[0.0, 0.0, 1.0, 40.0, 40.0, 40.0, 40.0]
+  moveWeights = Float64[0.0, 0.0, 2.0, 40.0, 40.0, 40.0, 40.0]
   if fixAlignment
-    moveWeights = Float64[0.0, 40.0, 0.0, 400.0, 400.0, 200.0, 400.0]
+    moveWeights = Float64[0.0, 4.0, 0.0, 40.0, 40.0, 20.0, 40.0]
   end
   nsamples = 1
   currentll, current_samples = tkf92(nsamples, rng, seqpair, current, modelparams, cornercut, true, current_sample.align1, current_sample.align2, true, current_sample.states)
@@ -541,7 +541,7 @@ function mcmc_sequencepair(citer::Int, niter::Int, samplerate::Int, rng::Abstrac
           propratio = logpdf(d2, current.ratio) - logpdf(d1, proposed.ratio)
           movename = "ratio"
         elseif move == 6
-          sigma = 0.1
+          sigma = 0.25
           d1 = Truncated(Normal(current.r, sigma), 0.0, 1.0)
           proposed.r = rand(d1)
           d2 = Truncated(Normal(proposed.r, sigma), 0.0, 1.0)
@@ -1081,11 +1081,11 @@ function test()
   #modelfile = "models/pairhmm8_noswitching.jls"
 
   modelfile = "models/pairhmm48_switching_n468.jls"
-  outputdir = "logs/pairhmm48_switching_n468/"
+  outputdir = "logs/pairhmm48_switching_n468_diverse/"
 
   mkpath(outputdir)
 
-  fixAlignment = false
+  fixAlignment = true
   cornercut = 75
 
   ser = open(modelfile,"r")
