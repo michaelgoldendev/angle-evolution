@@ -73,6 +73,48 @@ function set_parameters(node::AAPairNode, eqfreqs::Array{Float64, 1},  S::Array{
   end
 end
 
+export set_aaratematrix
+function set_aaratematrix(node::AAPairNode, x::Array{Float64,1})
+  S = zeros(Float64,20,20)
+  index = 1
+  for i=1:20
+    for j=1:20
+      if j > i
+        S[i,j] = x[index]
+        S[j,i] = S[i,j]
+        index += 1
+      end
+    end
+  end
+  S[2,1] = node.S[2,1]
+  S[1,2] = S[2,1]
+
+  for i=1:20
+    for j=1:20
+      if i != j
+        S[i,i] -= S[i,j]
+      end
+    end
+  end
+
+  set_parameters(node, node.eqfreqs,  S, 1.0)
+end
+
+export get_aaratematrixparameters
+function get_aaratematrixparameters(node::AAPairNode)
+  x = zeros(Float64,190)
+  index = 1
+  for i=1:20
+    for j=1:20
+      if j > i
+        x[index] = node.S[i,j]
+        index += 1
+      end
+    end
+  end
+  return x
+end
+
 function set_parameters(node::AAPairNode, eqfreqs::Array{Float64, 1}, t::Float64)
   set_parameters(node, eqfreqs, node.S, t)
 end

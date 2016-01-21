@@ -168,6 +168,21 @@ function getconfigurations(align1::Array{Int,1},align2::Array{Int,1})
   return conf1, conf2
 end
 
+export getstates
+function getstates(states::Array{Int,1}, align1::Array{Int,1},align2::Array{Int,1})
+  states1 = Int[]
+  states2 = Int[]
+  for i=1:length(align1)
+    if align1[i] > 0
+      push!(states1, states[align1[i]])
+    end
+    if align2[i] > 0
+      push!(states2, states[align2[i]])
+    end
+  end
+  return states1, states2
+end
+
 export getalignmentpath
 function getalignmentpath(n::Int, m::Int, align1::Array{Int,1},align2::Array{Int,1}, states::Array{Int,1})
   matrix::SparseMatrixCSC{Int64,Int64} = spzeros(Int, n+1, m+1)
@@ -327,29 +342,41 @@ function load_sequences_and_alignments(datafile)
     elseif line == 2
       seq2 = ln
     elseif line == 3
-      phi1 = Float64[]
+      phi1 = zeros(Float64,length(seq1))
       if length(ln) > 0
         phi1 = Float64[parse(Float64, s) for s in split(ln, ",")]
       end
     elseif line == 4
-      psi1 = Float64[]
+      psi1 = zeros(Float64,length(seq1))
       if length(ln) > 0
         psi1 = Float64[parse(Float64, s) for s in split(ln, ",")]
       end
     elseif line == 5
-      phi2 = Float64[]
+      phi2 = zeros(Float64,length(seq2))
       if length(ln) > 0
         phi2 = Float64[parse(Float64, s) for s in split(ln, ",")]
       end
     elseif line == 6
-      psi2 = Float64[]
+      psi2 = zeros(Float64,length(seq2))
       if length(ln) > 0
         psi2 = Float64[parse(Float64, s) for s in split(ln, ",")]
       end
     elseif line == 7
-      ss1 = ln
+      ss1 = ""
+      for i=1:length(seq1)
+        ss1 = string(ss1, "-")
+      end
+      if length(ln) > 0
+        ss1 = ln
+      end
     elseif line == 8
-      ss2 = ln
+      ss2 = ""
+      for i=1:length(seq2)
+        ss2 = string(ss2, "-")
+      end
+      if length(ln) > 0
+        ss2 = ln
+      end
     elseif line == 9
       align1 = get_alignment(strip(ln))
       aligned = true
@@ -368,6 +395,7 @@ function load_sequences_and_alignments(datafile)
         push!(pairs, sample)
       else
         seq = Sequence(seq1,phi1,psi1,ss1)
+        id += 1
         align1 = Int[i for i=1:seq.length]
         align2 = zeros(Int,seq.length)
         seqpair = SequencePair(id, seq, Sequence(0))

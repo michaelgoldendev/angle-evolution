@@ -11,9 +11,9 @@ Profile.print(profilewriter)
 =#
 #push!(LOAD_PATH, pwd())
 #println(pwd())
+
 #=
 addprocs(4)
-
 #addprocs(CPU_CORES)
 
 @everywhere include("UtilsModule.jl")

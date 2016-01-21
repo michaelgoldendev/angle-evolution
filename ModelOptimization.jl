@@ -442,3 +442,56 @@ function prioropt(samples::Array{SequencePairSample,1}, prior::PriorDistribution
   (minf,minx,ret) = optimize(opt, ones(Float64, 8))
   return PriorDistribution(minx)
 end
+
+
+export aa_all
+function aa_all(x::Array{Float64,1}, samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
+  for obsnode in obsnodes
+      set_aaratematrix(obsnode.aapairnode, x)
+      set_aaratematrix(obsnode.switching.aapairnode_r1, x)
+      set_aaratematrix(obsnode.switching.aapairnode_r2, x)
+  end
+
+  ll = 0.0
+  for sample in samples
+    seqpair = sample.seqpair
+    align1 = sample.align1
+    align2 = sample.align2
+    t = sample.params.t
+    for a=1:length(align1)
+      i = align1[a]
+      j = align2[a]
+      h = sample.states[a]
+      if i == 0
+        ll += get_data_lik_x0(obsnodes[h], seqpair.seq2,j, t)
+      elseif j == 0
+        ll += get_data_lik_xt(obsnodes[h], seqpair.seq1,i,t)
+      else
+        ll += get_data_lik(obsnodes[h], seqpair.seq1, seqpair.seq2, i, j, t)
+      end
+    end
+  end
+
+  return ll
+end
+
+export optimize_aaratematrix
+function optimize_aaratematrix(samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
+  localObjectiveFunction = ((param, grad) -> aa_all(param, samples, obsnodes))
+  opt = Opt(:LN_COBYLA, 190)
+  lower = ones(Float64, 190)*1e-4
+  lower_bounds!(opt, lower)
+  upper = ones(Float64, 190)*1e4
+  upper_bounds!(opt, upper)
+  xtol_rel!(opt,1e-4)
+  maxeval!(opt, 1330)
+  max_objective!(opt, localObjectiveFunction)
+  (minf,minx,ret) = optimize(opt, get_aaratematrixparameters(obsnodes[1].aapairnode))
+
+   for obsnode in obsnodes
+      set_aaratematrix(obsnode.aapairnode, minx)
+      set_aaratematrix(obsnode.switching.aapairnode_r1, minx)
+      set_aaratematrix(obsnode.switching.aapairnode_r2, minx)
+  end
+  return minx
+end

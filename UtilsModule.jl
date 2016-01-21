@@ -1,5 +1,5 @@
 using DataStructures
-using Formatting
+#using Formatting
 
 module UtilsModule
   include("AcceptanceLogger.jl")
@@ -101,6 +101,7 @@ module UtilsModule
   end
 
   function GumbelSample(rng::AbstractRNG, v::Array{Float64})
+      # returns a sample from a log categorical distribution
       n = length(v)
       index = 1
       max = v[1] -log(-log(rand(rng)))

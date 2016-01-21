@@ -1,6 +1,7 @@
 export angular_rmsd
 function angular_rmsd(theta1::Array{Float64, 1}, theta2::Array{Float64})
-  dist =0.0
+
+  dist = 0.0
   len = 0
   for i=1:length(theta1)
     if theta1[i] > -100.0 && theta2[i] > -100.0
@@ -16,9 +17,24 @@ function angular_rmsd(theta1::Array{Float64, 1}, theta2::Array{Float64})
   end
 
   return sqrt(dist/float(len))
+
+
+  #=
+  dist =0.0
+  len = 0
+  for i=1:length(theta1)
+    if theta1[i] > -100.0 && theta2[i] > -100.0
+      dist += (1.0 - cos(theta2[i]-theta1[i]))/2.0
+      len += 1
+    end
+  end
+
+  return dist/float(len)
+  =#
 end
 
 function angular_rmsd(theta1::Array{Float64, 1}, theta2::Array{Float64},  align1::Array{Int}, align2::Array{Int})
+
   dist =0.0
   len = 0
   for (a,b) in zip(align1, align2)
@@ -37,6 +53,21 @@ function angular_rmsd(theta1::Array{Float64, 1}, theta2::Array{Float64},  align1
   end
 
   return sqrt(dist/float(len))
+
+  #=
+  dist =0.0
+  len = 0
+  for (a,b) in zip(align1, align2)
+    if a > 0 && b > 0
+      if theta1[a] > -100.0 && theta2[b] > -100.0
+        dist += (1.0 - cos(theta2[b]-theta1[a]))/2.0
+        len += 1
+      end
+    end
+  end
+
+  return dist/float(len)
+  =#
 end
 
 export angular_mean
