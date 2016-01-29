@@ -316,7 +316,6 @@ function tkf92forward(obsnodes::Array{ObservationNode,1}, seqpair::SequencePair,
     end
   end
 
-
   if fixAlignment && i > 0 && j > 0 && !(starti <= i <= endi && startj <= j <= endj)
     if alignmentpath[i+1,j+1] <= 0
       return -Inf
@@ -750,11 +749,11 @@ function train()
   cornercut = 75
   usesecondarystructure = true
   useswitching = true
-  useparallel = true
+  useparallel = false
   fixInputAlignments = true
 
   #inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data.txt"))[1:50]
-  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse2.txt"))[1:100]
+  inputsamples = shuffle!(rng, load_sequences_and_alignments("data/data_diverse2.txt"))[1:20]
   pairs = SequencePair[sample.seqpair for sample in inputsamples]
 
   println("N=",length(pairs))
@@ -762,7 +761,7 @@ function train()
   mcmciter = 75
   samplerate = 4
 
-  numHiddenStates = 24
+  numHiddenStates = 4
 
   freeParameters = 6*numHiddenStates + (numHiddenStates-1) + (numHiddenStates*numHiddenStates - numHiddenStates) + numHiddenStates*19
   if useswitching
@@ -772,9 +771,9 @@ function train()
   mkpath("models/")
   loadModel = false
   if useswitching
-    modelfile = string("models/pairhmm",numHiddenStates,"_switching_n",length(pairs),".jls")
+    modelfile = string("models/pairhmm",numHiddenStates,"_switching_n",length(pairs),"_fixalignment=",fixInputAlignments,".jls")
   else
-    modelfile = string("models/pairhmm",numHiddenStates,"_noswitching_n",length(pairs),".jls")
+    modelfile = string("models/pairhmm",numHiddenStates,"_noswitching_n",length(pairs),"_fixalignment=",fixInputAlignments,".jls")
   end
 
 
@@ -796,15 +795,15 @@ function train()
       v = rand(Float64,20)
       v /= sum(v)
       set_parameters(obsnodes[h].switching.aapairnode_r2, v, 1.0)
-      set_parameters(obsnodes[h].switching.diffusion_r1, 0.1+0.1*rand(), rand()*2.0*pi - pi, 0.5 + 1.0*rand(), 0.1+0.1*rand(), rand()*2.0*pi - pi, 0.5 + 1.0*rand(), 1.0, 1.0)
-      set_parameters(obsnodes[h].switching.diffusion_r2, 0.1+0.1*rand(), rand()*2.0*pi - pi, 0.5 + 1.0*rand(), 0.1+0.1*rand(), rand()*2.0*pi - pi, 0.5 + 1.0*rand(), 1.0, 1.0)
+      set_parameters(obsnodes[h].switching.diffusion_r1, 0.1+0.1*rand(), rand()*2.0*pi - pi, 0.5 + 1.0*rand(), 0.1+0.1*rand(), rand()*2.0*pi - pi, 0.5 + 1.0*rand(), 0.0, 1.0,1.0)
+      set_parameters(obsnodes[h].switching.diffusion_r2, 0.1+0.1*rand(), rand()*2.0*pi - pi, 0.5 + 1.0*rand(), 0.1+0.1*rand(), rand()*2.0*pi - pi, 0.5 + 1.0*rand(), 0.0, 1.0,1.0)
       obsnodes[h].switching.alpha = 0.25 + 0.75*rand(rng)
       obsnodes[h].switching.pi_r1 = rand(rng)
     else
       v = rand(Float64,20)
       v /= sum(v)
       set_parameters(obsnodes[h].aapairnode, v, 1.0)
-      set_parameters(obsnodes[h].diffusion, 0.1, rand()*2.0*pi - pi, 1.0, 0.1, rand()*2.0*pi - pi, 1.0, 1.0, 1.0)
+      set_parameters(obsnodes[h].diffusion, 0.1, rand()*2.0*pi - pi, 1.0, 0.1, rand()*2.0*pi - pi, 1.0, 0.0, 1.0, 1.0)
       v = rand(Float64,3)
       v /= sum(v)
       set_parameters(obsnodes[h].ss, v, 1.0)
@@ -893,6 +892,7 @@ function train()
       end
 
       for k=1:length(pairs)
+        println("L=", k)
         it, newparams, ksamples, expll = fetch(refs[k])
         current_samples[k] = ksamples[end]
         push!(samplell, expll)
@@ -903,6 +903,7 @@ function train()
         for ks in ksamples
           push!(samples, ks)
         end
+        println("M=",k)
       end
 
       countfilename = string("logs/count",numHiddenStates,".log")
@@ -912,6 +913,7 @@ function train()
       count_kmers(samples,3,countfilename)
     else
       for k=1:length(pairs)
+        println("L=", k)
         it, newparams, ksamples, expll = mcmc_sequencepair(currentiter, mcmciter, samplerate,  MersenneTwister(abs(rand(Int))), current_samples[k], modelparams, cornercut, fixInputAlignments && inputsamples[k].aligned)
         current_samples[k] = ksamples[end]
         push!(samplell, expll)
@@ -922,6 +924,7 @@ function train()
         for ks in ksamples
           push!(samples, ks)
         end
+        println("M=",k)
       end
     end
     estep_elapsed = toc()
@@ -931,6 +934,7 @@ function train()
     if useswitching
       refs = RemoteRef[]
       for h=1:numHiddenStates
+        println("N=",h)
         samplescopy = SequencePairSample[deepcopy(s) for s in samples]
         ref = @spawn switchopt(h, samplescopy, deepcopy(obsnodes))
         push!(refs, ref)
@@ -974,6 +978,8 @@ function train()
         end
       end
     end
+
+    println("O")
 
     if i % 4 == 1
       if usesecondarystructure
@@ -1112,19 +1118,19 @@ function test()
   srand(98418108751401)
   rng = MersenneTwister(242402531025555)
 
+  benchmarksfilepath = "data/holdout_data.txt"
+  benchmarksname = basename(benchmarksfilepath)
+
   #pairs = load_sequences_and_alignments("data/data.txt")
   #pairs = load_sequences_and_alignments("data/holdout_data.txt")
-  pairs = shuffle!(rng, load_sequences_and_alignments("data/holdout_data_diverse.txt"))
+  pairs = shuffle!(rng, load_sequences_and_alignments(benchmarksfilepath))
   #pairs = load_sequences_and_alignments("data/glob.txt")
 
+  modelfile = "models/pairhmm8_switching_n10_fixalignment=false.jls"
+  modelname = basename(modelfile)
 
-  #modelfile = "models/pairhmm4_switching.jls"
-  #modelfile = "models/pairhmm8_noswitching.jls"
-  #modelfile = "models/pairhmm12_noswitching.jls"
-  #modelfile = "models/pairhmm8_noswitching.jls"
-
-  modelfile = "models/pairhmm24_switching_n468.jls"
-  outputdir = "logs/pairhmm24_switching_n468_fixed_alignment/"
+  outputdir = string("logs/",modelname,"_",benchmarksname,"/")
+  println(outputdir)
 
   mkpath(outputdir)
 
@@ -1152,6 +1158,7 @@ function test()
     write(switchingout, string(k, "\t", obsnode.switching.alpha, "\t", obsnode.switching.pi_r1, "\n"))
   end
   close(switchingout)
+  #=
   println(obsnodes[1].switching.ss_r1.ctmc.S)
   for k=1:length(obsnodes)
     obsnode = obsnodes[k]
@@ -1160,7 +1167,7 @@ function test()
     println(string(obsnode.switching.diffusion_r1.alpha_psi,"\t",obsnode.switching.diffusion_r1.mu_psi,"\t",obsnode.switching.diffusion_r1.sigma_psi))
     println(string(obsnode.switching.diffusion_r2.alpha_phi,"\t",obsnode.switching.diffusion_r2.mu_phi,"\t",obsnode.switching.diffusion_r2.sigma_phi))
     println(string(obsnode.switching.diffusion_r2.alpha_psi,"\t",obsnode.switching.diffusion_r2.mu_psi,"\t",obsnode.switching.diffusion_r2.sigma_psi))
-  end
+  end=#
 
   outfile = open(string(outputdir, "benchmarks",numHiddenStates,".txt"), "w")
   write(outfile, "mask\tphi_homologue\tpsi_homologue\tphi_predicted\tpsi_predicted\n")

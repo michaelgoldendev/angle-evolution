@@ -1,6 +1,8 @@
 using NLopt
 
 freqprior = Beta(1.5, 1.5)
+alpha_prior = 0.01
+#rho_prior = Beta(5.0, 5.0)
 function switchll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample,1}, seqindices::Array{Int,1}, hindices::Array{Int,1}, obsnodes::Array{ObservationNode, 1}, store::Array{Float64, 1})
   set_parameters(obsnodes[h].switching, x)
 
@@ -9,6 +11,9 @@ function switchll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample
   ll = sum((concentration_param-1.0)*log(obsnodes[h].switching.aapairnode_r1.eqfreqs))
   ll += sum((concentration_param-1.0)*log(obsnodes[h].switching.aapairnode_r2.eqfreqs))
   ll += logpdf(freqprior, obsnodes[h].switching.pi_r1)
+  ll += -alpha_prior*obsnodes[h].switching.alpha
+  #ll += logpdf(rho_prior, obsnodes[h].switching.diffusion_r1.alpha_rho/2.0 + 0.5)
+  #ll += logpdf(rho_prior, obsnodes[h].switching.diffusion_r2.alpha_rho/2.0 + 0.5)
 
   for (s,a) in zip(seqindices,hindices)
     sample = samples[s]
@@ -29,7 +34,7 @@ function switchll(x::Array{Float64,1}, h::Int, samples::Array{SequencePairSample
 
   if ll > store[1]
     store[1] = ll
-    for i=1:60
+    for i=1:62
       store[i+1]  = x[i]
     end
   end
@@ -40,10 +45,10 @@ end
 export switchopt
 function switchopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array{ObservationNode, 1})
   seqindices,hindices = getindices(samples, h)
-  store = ones(Float64,61)*(-1e20)
+  store = ones(Float64,63)*(-1e20)
   localObjectiveFunction = ((param, grad) -> switchll(param, h, samples,seqindices,hindices, obsnodes, store))
-  opt = Opt(:LN_COBYLA, 60)
-  lower = zeros(Float64, 60)
+  opt = Opt(:LN_COBYLA, 62)
+  lower = zeros(Float64, 62)
   for i=1:40
     lower[i] = 1e-10
   end
@@ -53,46 +58,49 @@ function switchopt(h::Int, samples::Array{SequencePairSample,1}, obsnodes::Array
   lower[44] = 1e-5
   lower[45] = -1000000.0
   lower[46] = 1e-5
+  lower[47] = -100.0
 
-  lower[47] = 1e-5
-  lower[48] = -1000000.0
-  lower[49] = 1e-5
+  lower[48] = 1e-5
+  lower[49] = -1000000.0
   lower[50] = 1e-5
-  lower[51] = -1000000.0
-  lower[52] = 1e-5
+  lower[51] = 1e-5
+  lower[52] = -1000000.0
+  lower[53] = 1e-5
+  lower[54] = -100.0
 
-  lower[53] = 1e-3
-  lower[54] = 0.0
-  for i=55:60
+  lower[55] = 1e-3
+  lower[56] = 0.0
+  for i=57:62
     lower[i] = 1e-10
   end
   lower_bounds!(opt, lower)
 
-  upper = ones(Float64, 60)
+  upper = ones(Float64, 62)
   upper[41] = 1e5
   upper[42] = 1000000.0
   upper[43] = 1e5
   upper[44] = 1e5
   upper[45] = 1000000.0
   upper[46] = 1e5
+  upper[47] = 100.0
 
-  upper[47] = 1e5
-  upper[48] = 1000000.0
-  upper[49] = 1e5
+  upper[48] = 1e5
+  upper[49] = 1000000.0
   upper[50] = 1e5
-  upper[51] = 1000000.0
-  upper[52] = 1e5
+  upper[51] = 1e5
+  upper[52] = 1000000.0
+  upper[53] = 1e5
+  upper[54] = 100.0
 
-  upper[53] = 1e3
-  upper[54] = 1.0
+  upper[55] = 1e3
+  upper[56] = 1.0
   upper_bounds!(opt, upper)
   xtol_rel!(opt,1e-4)
   maxeval!(opt, 600)
   max_objective!(opt, localObjectiveFunction)
   initial = get_parameters(obsnodes[h].switching)
-
   (minf,minx,ret) = optimize(opt, initial)
-  optx = store[2:61]
+  optx = store[2:63]
 
   set_parameters(obsnodes[h].switching, optx)
   return optx

@@ -1,11 +1,15 @@
 include("VonMisesDensity.jl")
 
+include("WrappedNormalOUNode.jl")
+#using WrappedNormalOU
+
 export DiffusionNode
 type DiffusionNode
   vm_phi::VonMisesDensity
   vm_psi::VonMisesDensity
   vm_phi_stat::VonMisesDensity
   vm_psi_stat::VonMisesDensity
+  ounode::WrappedNormalOUNode
 
   alpha_phi::Float64
   mu_phi::Float64
@@ -13,6 +17,7 @@ type DiffusionNode
   alpha_psi::Float64
   mu_psi::Float64
   sigma_psi::Float64
+  alpha_rho::Float64
 
 
   t::Float64
@@ -23,32 +28,34 @@ type DiffusionNode
     vm_psi = VonMisesDensity()
     vm_phi_stat = VonMisesDensity()
     vm_psi_stat = VonMisesDensity()
-    new(vm_phi, vm_psi, vm_phi_stat, vm_psi_stat, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
+    ounode = WrappedNormalOUNode(1)
+    new(vm_phi, vm_psi, vm_phi_stat, vm_psi_stat, ounode, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0)
   end
 
   function DiffusionNode(node::DiffusionNode)
-    new(VonMisesDensity(node.vm_phi), VonMisesDensity(node.vm_psi), VonMisesDensity(node.vm_phi_stat), VonMisesDensity(node.vm_psi_stat), node.alpha_phi, node.mu_phi, node.sigma_phi, node.alpha_psi, node.mu_psi, node.sigma_psi, node.t, node.branch_scale)
+    new(VonMisesDensity(node.vm_phi), VonMisesDensity(node.vm_psi), VonMisesDensity(node.vm_phi_stat), VonMisesDensity(node.vm_psi_stat), WrappedNormalOUNode(), node.alpha_phi, node.mu_phi, node.sigma_phi, node.alpha_psi, node.mu_psi, node.sigma_psi, node.alpha_rho, node.t, node.branch_scale)
   end
 end
 
 export get_parameters
 function get_parameters(node::DiffusionNode)
-  return Float64[node.alpha_phi, node.mu_phi, node.sigma_phi, node.alpha_psi, node.mu_psi, node.sigma_psi, node.branch_scale]
+  return Float64[node.alpha_phi, node.mu_phi, node.sigma_phi, node.alpha_psi, node.mu_psi, node.sigma_psi, node.alpha_rho, node.branch_scale]
 end
 
 export set_parameters
-function set_parameters(node::DiffusionNode, alpha_phi::Float64, mu_phi::Float64, sigma_phi::Float64, alpha_psi::Float64, mu_psi::Float64, sigma_psi::Float64, t::Float64, branch_scale::Float64=1.0)
+function set_parameters(node::DiffusionNode, alpha_phi::Float64, mu_phi::Float64, sigma_phi::Float64, alpha_psi::Float64, mu_psi::Float64, sigma_psi::Float64, alpha_rho::Float64, t::Float64, branch_scale::Float64=1.0)
   node.alpha_phi = alpha_phi
   node.mu_phi = mu_phi
   node.sigma_phi = sigma_phi
   node.alpha_psi = alpha_psi
   node.mu_psi = mu_psi
   node.sigma_psi = sigma_psi
+  node.alpha_rho = alpha_rho
   node.t = t
-  #node.branch_scale = branch_scale
   node.branch_scale = 1.0
   set_parameters(node.vm_phi_stat, node.mu_phi, min(700.0, 2.0*node.alpha_phi/(node.sigma_phi*node.sigma_phi)))
   set_parameters(node.vm_psi_stat, node.mu_psi, min(700.0, 2.0*node.alpha_psi/(node.sigma_psi*node.sigma_psi)))
+  set_parameters(node.ounode, 1.0, mu_phi, mu_psi, alpha_phi, alpha_psi, alpha_rho, sigma_phi, sigma_psi)
 end
 
 export get_data_lik_phi
@@ -57,7 +64,8 @@ function get_data_lik_phi(node::DiffusionNode, phi_x0::Float64)
   if phi_x0 > -100.0
     phi_ll = logdensity(node.vm_phi_stat, phi_x0)
   end
-  return phi_ll
+  #return phi_ll
+  return 0.0
 end
 
 export get_data_lik_psi
@@ -66,15 +74,39 @@ function get_data_lik_psi(node::DiffusionNode, psi_x0::Float64)
   if psi_x0 > -100.0
     psi_ll = logdensity(node.vm_psi_stat, psi_x0)
   end
-  return psi_ll
+  #return psi_ll
+  return 0.0
 end
 
 export get_data_lik
 function get_data_lik(node::DiffusionNode, phi_x0::Float64, psi_x0::Float64)
-  return get_data_lik_phi(node, phi_x0) + get_data_lik_psi(node, psi_x0)
+  ll = 0.0
+  if phi_x0 > -100.0 && psi_x0 > -100.0
+    ll = loglikwndstat(node.ounode, phi_x0, psi_x0)
+  end
+  return ll
+  #return get_data_lik_phi(node, phi_x0) + get_data_lik_psi(node, psi_x0)
 end
 
 function get_data_lik(node::DiffusionNode, phi_x0::Float64, psi_x0::Float64, phi_xt::Float64, psi_xt::Float64, t2::Float64)
+
+  t = t2*node.branch_scale
+  ll = 0.0
+
+  if phi_x0 > -100.0 && phi_xt > -100.0 && psi_x0 > -100.0 && psi_xt > -100.0
+    set_parameters(node.ounode, t)
+    ll = loglikwndtpd(node.ounode, phi_x0, psi_x0, phi_xt, psi_xt)
+  elseif phi_x0 > -100.0 && psi_x0 > -100.0
+    ll = loglikwndstat(node.ounode, phi_x0, psi_x0)
+  elseif phi_xt > -100.0 && psi_xt > -100.0
+    ll = loglikwndstat(node.ounode, phi_xt, psi_xt)
+  end
+
+  #println("R")
+  #println("R",ll)
+  return ll
+
+  #=
   t = t2*node.branch_scale
 
   phi_ll = 0.0
@@ -100,6 +132,7 @@ function get_data_lik(node::DiffusionNode, phi_x0::Float64, psi_x0::Float64, phi
   end
 
   return phi_ll + psi_ll
+  =#
 end
 
 
@@ -156,4 +189,8 @@ println(sample_phi_psi(node, rng, 0.0, 0.0, -1000.0, -1000.0, 0.1))
 println(sample_phi_psi(node, rng, 0.0, 0.0, -1000.0, -1000.0, 0.1))
 println(sample_phi_psi(node, rng, 0.0, 0.0, -1000.0, -1000.0, 1.0))
 println(sample_phi_psi(node, rng, 0.0, 0.0, -1000.0, -1000.0, 1.0))
+
+node =  DiffusionNode()
+node.alpha_rho = 0.0
+println("BB",get_data_lik(node, 1.0, 1.0, 1.0, 1.0, 1.0))
 =#
