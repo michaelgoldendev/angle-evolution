@@ -11,26 +11,25 @@
 #include <iostream>
 
 using namespace std;
-using namespace arma;
 
 // Declaration
-vec DensStatWNOU(mat x, vec mu, vec alpha, vec sigma, int maxK, double etrunc);
+arma::vec DensStatMWNOU(arma::mat x, arma::vec mu, arma::vec alpha, arma::vec sigma, int maxK, double etrunc);
 
 // Main
 int main(int argc, char** argv) {
   
   /*
    *  Argument codification in argv: 
-   *  t mu1 mu2 alpha1 alpha2 alpha3 sigma1 sigma2 maxK etrunc x
+   *  mu1 mu2 alpha1 alpha2 alpha3 sigma1 sigma2 maxK etrunc x
    *  (where x is the N x 2 matrix of evaluation points stored by rows as a vector)
    */
   
   // Set parameters
-  vec mu(2); 
+  arma::vec mu(2); 
   mu(0) = atof(argv[1]); mu(1) = atof(argv[2]);
-  vec alpha(3); 
+  arma::vec alpha(3); 
   alpha(0) = atof(argv[3]); alpha(1) = atof(argv[4]); alpha(2) = atof(argv[5]);
-  vec sigma(2); 
+  arma::vec sigma(2); 
   sigma(0) = atof(argv[6]); sigma(1) = atof(argv[7]);
   int maxK = atoi(argv[8]);
   double etrunc = atof(argv[9]);
@@ -38,7 +37,7 @@ int main(int argc, char** argv) {
   // Read matrix
   int count = 10;
   int n_rows = (argc - count)/2;
-  mat x(n_rows, 2);
+  arma::mat x(n_rows, 2);
   for (int i = 0; i < n_rows; i++){
     for (int j = 0; j < 2; j++){
       x(i, j) = atof(argv[count]);
@@ -47,7 +46,7 @@ int main(int argc, char** argv) {
   }
 
   // Call function
-  vec result = DensStatWNOU(x, mu, alpha, sigma, maxK, etrunc);
+  arma::vec result = DensStatMWNOU(x, mu, alpha, sigma, maxK, etrunc);
 
   // Print result
   result.t().print();
@@ -57,60 +56,69 @@ int main(int argc, char** argv) {
 }
 
 // Subroutine
-vec DensStatWNOU(mat x, vec mu, vec alpha, vec sigma, int maxK = 1, double etrunc = 25) {
+arma::vec DensStatMWNOU(arma::mat x, arma::vec mu, arma::vec alpha, arma::vec sigma, int maxK = 2, double etrunc = 50) {
   
   /*
-   * Description: Density of the stationary distribution of a MWN-OU diffusion (with diagonal diffusion matrix)
-   * 
-   * Arguments:
-   *
-   * - x: matrix of size N x 2 containing the evaluation points.
-   * - mu: a vector of length 2 with the mean parameter of the MWN-OU process. The mean of the MWN stationary distribution.
-   * - alpha: vector of length 3 containing the A matrix of the drift of the MWN-OU process in the following codification: 
-   *        A = [alpha[0], alpha[2] * sqrt(sigma[0] / sigma[1]); alpha[2] * sqrt(sigma[1] / sigma[0]), alpha[1]]. 
-   *        This enforces that A^(-1) * Sigma is symmetric. Positive definiteness is guaranteed if alpha[0] * alpha[1] > alpha[2] * alpha[2].
-   *        The function checks for it and, if violated, returns the density from a close A^(-1) * Sigma that is positive definite.
-   * - sigma: vector of length 2 containing the diagonal of Sigma, the diffusion matrix.
-   * - maxK: maximum number of winding number considered in the computation of the approximated transition probability density.
-   * - etrunc: truncation for exponential. exp(x) with x <= -etrunc is set to zero.
-   * 
-   * Value: 
-   * 
-   * - dens: vector of size N containing the density evaluated at x.
-   * 
-   * Author: Eduardo García-Portugués (egarcia@math.ku.dk) 
-   * 
-   */
+  * Description: Density of the stationary distribution of a MWN-OU diffusion (with diagonal diffusion matrix)
+  * 
+  * Arguments:
+  *
+  * - x: matrix of size N x 2 containing the evaluation points. They must be in [-PI, PI) so that the truncated wrapping by 
+  *      maxK windings is able to capture periodicity.
+  * - mu: a vector of length 2 with the mean parameter of the MWN-OU process. The mean of the MWN stationary distribution. 
+  *       It must be in [PI, PI) x [PI, PI).
+  * - alpha: vector of length 3 containing the A matrix of the drift of the MWN-OU process in the following codification: 
+  *        A = [alpha[0], alpha[2] * sqrt(sigma[0] / sigma[1]); alpha[2] * sqrt(sigma[1] / sigma[0]), alpha[1]]. 
+  *        This enforces that A^(-1) * Sigma is symmetric. Positive definiteness is guaranteed if
+  *        alpha[0] * alpha[1] > alpha[2] * alpha[2]. The function checks for it and, if violated, returns the 
+  *        density from a close A^(-1) * Sigma that is positive definite.
+  * - sigma: vector of length 2 containing the diagonal of Sigma, the diffusion matrix. Note that these are the *squares*
+  *          (i.e. variances) of the diffusion coefficients that multiply the Wiener process.
+  * - maxK: maximum number of winding number considered in the computation of the approximated transition probability density.
+  * - etrunc: truncation for exponential. exp(x) with x <= -etrunc is set to zero.
+  * 
+  * Warning: 
+  * 
+  *  - A combination of small etrunc (< 30) and low maxK (<= 1) can lead to NaNs produced by 0 / 0 in the weight computation. 
+  *    This is specially dangerous if sigma is large and there are values in x or x0 outside [-PI, PI).
+  *    
+  * Value: 
+  * 
+  * - dens: vector of size N containing the density evaluated at the grid x.
+  * 
+  * Author: Eduardo García-Portugués (egarcia@math.ku.dk) 
+  * 
+  */
   
   /*
-   * Create basic objects
-   */
+  * Create basic objects
+  */
   
   // Number of pairs
   int N = x.n_rows;
-
+  
   // Create and initialize A
   double quo = sqrt(sigma(0) / sigma(1));
-  mat A(2, 2); 
+  arma::mat A(2, 2); 
   A(0, 0) = alpha(0); 
   A(1, 1) = alpha(1); 
   A(0, 1) = alpha(2) * quo;
   A(1, 0) = alpha(2) / quo;
   
   // Create and initialize Sigma
-  mat Sigma = diagmat(sigma);
+  arma::mat Sigma = diagmat(sigma);
   
   // Sequence of winding numbers
   const int lk = 2 * maxK + 1;
-  vec twokpi = linspace<vec>(-maxK * 2 * M_PI, maxK * 2 * M_PI, lk);
+  arma::vec twokpi = arma::linspace<arma::vec>(-maxK * 2 * M_PI, maxK * 2 * M_PI, lk);
   
   // Bivariate vector (2 * K1 * PI, 2 * K2 * PI) for weighting
-  vec twokepivec(2);
+  arma::vec twokepivec(2);
   
   /*
   * Check for symmetry and positive definiteness of A^(-1) * Sigma
   */
-
+  
   // Only positive definiteness can be violated with the parametrization of A
   double testalpha = alpha(0) * alpha(1) - alpha(2) * alpha(2);
   
@@ -118,7 +126,7 @@ vec DensStatWNOU(mat x, vec mu, vec alpha, vec sigma, int maxK = 1, double etrun
   if(testalpha <= 0) {
     
     // Update alpha(2) such that testalpha > 0
-    alpha(2) = signbit(alpha(2)) * sqrt(alpha(0) * alpha(1)) * 0.9999;
+    alpha(2) = std::signbit(alpha(2)) * sqrt(alpha(0) * alpha(1)) * 0.9999;
     
     // Reset A to a matrix with positive determinant
     A(0, 1) = alpha(2) * quo;
@@ -127,26 +135,26 @@ vec DensStatWNOU(mat x, vec mu, vec alpha, vec sigma, int maxK = 1, double etrun
   }
   
   // Inverse of 1/2 * A^(-1) * Sigma: 2 * Sigma^(-1) * A
-  mat invSigmaA = 2 * diagmat(1 / diagvec(Sigma)) * A;
+  arma::mat invSigmaA = 2 * diagmat(1 / diagvec(Sigma)) * A;
   
   // Log-normalizing constant for the Gaussian with covariance SigmaA
   double lognormconstSigmaA = -log(2 * M_PI) + log(det(invSigmaA)) / 2;
   
   /* 
-   * Evaluation of the density reusing the code from the weights of the winding numbers
-   * in LogLikWNOUPairs for each data point. Here we sum all the unstandarized weights 
-   * for each data point.
-   */
+  * Evaluation of the density reusing the code from the weights of the winding numbers
+  * in logLikWnOuPairs for each data point. Here we sum all the unstandarized weights 
+  * for each data point.
+  */
   
   // We store the weights in a matrix to skip the null later in the computation of the tpd
-  mat weightswindsinitial(N, lk * lk);
+  arma::mat weightswindsinitial(N, lk * lk);
   
   // Loop in the data
   for(int i = 0; i < N; i++){
     
     // Compute the factors in the exponent that do not depend on the windings
-    vec xmu = x.row(i).t() - mu;
-    vec xmuinvSigmaA = invSigmaA * xmu;
+    arma::vec xmu = x.row(i).t() - mu;
+    arma::vec xmuinvSigmaA = invSigmaA * xmu;
     double xmuinvSigmaAxmudivtwo = dot(xmuinvSigmaA, xmu) / 2;
     
     // Loop in the winding weight K1
@@ -169,9 +177,13 @@ vec DensStatWNOU(mat x, vec mu, vec alpha, vec sigma, int maxK = 1, double etrun
         
         // Truncate the negative exponential
         if(exponent > etrunc){
+          
           weightswindsinitial(i, wek1 * lk + wek2) = 0;
+          
         }else{
+          
           weightswindsinitial(i, wekl1 + wek2) = exp(-exponent);
+          
         }
         
       }
@@ -181,14 +193,9 @@ vec DensStatWNOU(mat x, vec mu, vec alpha, vec sigma, int maxK = 1, double etrun
   }
   
   // The density is the sum of the weights
-  vec dens = sum(weightswindsinitial, 1);
+  arma::vec dens = sum(weightswindsinitial, 1);
   
   return dens;
   
-  }
-
-
-
-
-
+}
 
