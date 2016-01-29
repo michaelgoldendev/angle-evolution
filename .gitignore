@@ -1,2 +1,4 @@
 models/
 logs/
+
+src/*.o *so
