@@ -22,7 +22,7 @@ How to compile and run the C++ codes from console
 
  - Compilation: `g++ samptrans.cpp -o samptrans -larmadillo -O2`
  - Codification arguments: `N x01 x02 t mu1 mu2 alpha1 alpha2 alpha3 sigma1 sigma2 maxK etrunc`
- - Running example: `./samptrans 5 0 0 1 0 -0.57 1 2 0 1 1.0 2 50
+ - Running example: `./samptrans 5 0 0 1 0 -0.57 1 2 0 1 1.0 2 50`
  - Output: `0.7660   0.1412   0.7678  -0.3187   0.4122   0.5109  -0.1105  -0.8379   0.0494  -0.5586`
 
 ### densstat
@@ -62,11 +62,11 @@ They are called with the same arguments but allowing `t` and `x0` to be a vector
  - Output 1:
     ```
     [cube slice 0]
-    0.7660   0.1412
-    0.7678  -0.3187
-    0.4122   0.5109
-   -0.1105  -0.8379
-    0.0494  -0.5586
+       0.7660   0.1412
+       0.7678  -0.3187
+       0.4122   0.5109
+      -0.1105  -0.8379
+       0.0494  -0.5586
     ```
  - Running example 2: `./samptranstime 5 0 -0.57 1 2 0 1 1.0 2 50 0 0 0 0 1 2` (same `x0` with different `t`'s)
  - Output 2:
