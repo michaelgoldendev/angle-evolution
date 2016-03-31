@@ -1,4 +1,10 @@
 models/
 logs/
 
+# Omit binaries from Edu’s suff
 src/*.o *so
+
+# Omit all files without extension
+*
+!/**/
+!*.*
