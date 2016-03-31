@@ -53,8 +53,7 @@ int main(int argc, char** argv) {
     t(i) = atof(argv[count]);
     count++;
   }
-  printf("%.4d", n_rows);
-  
+
   // Call function
   double result = logLikWnOuPairs(x, t, alpha, mu, sigma, maxK, etrunc);
 
