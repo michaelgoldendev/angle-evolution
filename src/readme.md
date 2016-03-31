@@ -60,6 +60,7 @@ They are called with the same arguments but allowing `t` and `x0` to be a vector
  - Codification arguments: `N mu1 mu2 alpha1 alpha2 alpha3 sigma1 sigma2 maxK etrunc x0 t`
  - Running example 1: `./samptranstime 5 0 -0.57 1 2 0 1 1.0 2 50 0 0 1` (single `x0` and `t`)
  - Output 1:
+
     ```
     [cube slice 0]
        0.7660   0.1412
@@ -68,6 +69,7 @@ They are called with the same arguments but allowing `t` and `x0` to be a vector
       -0.1105  -0.8379
        0.0494  -0.5586
     ```
+    
  - Running example 2: `./samptranstime 5 0 -0.57 1 2 0 1 1.0 2 50 0 0 0 0 1 2` (same `x0` with different `t`'s)
  - Output 2:
     ```
