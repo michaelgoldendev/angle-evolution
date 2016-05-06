@@ -25,6 +25,7 @@ function set_parameters(density::VonMisesDensity, mu::Float64, kappa::Float64)
     density.mu = mu
 end
 
+export logdensity
 function logdensity(density::VonMisesDensity, angle::Float64, mu::Float64, kappa::Float64)
     set_parameters(density, mu, kappa)
     log_numerator = kappa * cos(angle-mu)

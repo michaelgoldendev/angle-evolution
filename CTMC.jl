@@ -83,7 +83,11 @@ function set_parameters(node::CTMC, eqfreqs::Array{Float64, 1},  S::Array{Float6
 end
 
 function set_parameters(node::CTMC, eqfreqs::Array{Float64, 1}, t::Float64)
-  set_parameters(node, eqfreqs, node.S, t)
+  if node.eqfreqs != eqfreqs
+    set_parameters(node, eqfreqs, node.S, t)
+  elseif node.t != t
+    set_parameters(node, t)
+  end
 end
 
 function set_parameters(node::CTMC, t::Float64)

@@ -20,7 +20,7 @@ module UtilsModule
   function safelog(x::Float64)
     if x < 0.0
       println("X=",x)
-      return -Inf
+      return -1e10
     else
       return log(x)
     end

@@ -12,6 +12,8 @@ type AAPairNode
   t::Float64
   Pt::Array{Float64,2}
   logPt::Array{Float64,2}
+  diagsum::Float64
+  branchscale::Float64
 
   function AAPairNode()
     eqfreqs = ones(Float64,20)*0.05
@@ -21,11 +23,11 @@ type AAPairNode
     t = 1.0
     Pt = expm(Q*t)
     logPt = log(Pt)
-    return new(eqfreqs, logeqfreqs, S, Q, zeros(Float64,1), zeros(Float64,1,1), zeros(Float64,1,1), t, Pt, logPt)
+    return new(eqfreqs, logeqfreqs, S, Q, zeros(Float64,1), zeros(Float64,1,1), zeros(Float64,1,1), t, Pt, logPt, 0.0, 1.0)
   end
 
   function AAPairNode(node::AAPairNode)
-    new(copy(node.eqfreqs), copy(node.logeqfreqs), copy(node.S), copy(node.Q), copy(node.D), copy(node.V), copy(node.Vi), node.t, copy(node.Pt), copy(node.logPt))
+    new(copy(node.eqfreqs), copy(node.logeqfreqs), copy(node.S), copy(node.Q), copy(node.D), copy(node.V), copy(node.Vi), node.t, copy(node.Pt), copy(node.logPt), node.diagsum, node.branchscale)
   end
 end
 
@@ -86,8 +88,8 @@ function set_aaratematrix(node::AAPairNode, x::Array{Float64,1})
       end
     end
   end
-  S[2,1] = node.S[2,1]
-  S[1,2] = S[2,1]
+  #S[2,1] = node.S[2,1]
+  #S[1,2] = S[2,1]
 
   for i=1:20
     for j=1:20
@@ -96,6 +98,11 @@ function set_aaratematrix(node::AAPairNode, x::Array{Float64,1})
       end
     end
   end
+  tempdiagsum = 0.0
+  for i=1:20
+    tempdiagsum += -S[i,i]
+  end
+
 
   set_parameters(node, node.eqfreqs,  S, 1.0)
 end
@@ -116,7 +123,11 @@ function get_aaratematrixparameters(node::AAPairNode)
 end
 
 function set_parameters(node::AAPairNode, eqfreqs::Array{Float64, 1}, t::Float64)
-  set_parameters(node, eqfreqs, node.S, t)
+  if node.eqfreqs != eqfreqs
+    set_parameters(node, eqfreqs, node.S, t)
+  elseif node.t != t
+    set_parameters(node, t)
+  end
 end
 
 function set_parameters(node::AAPairNode, t::Float64)
@@ -144,6 +155,7 @@ function load_parameters(node::AAPairNode, parameter_file)
 
   S = zeros(Float64,20, 20)
 
+
   for i=1:20
    spl = split(lines[i])
    for j=1:length(spl)
@@ -152,10 +164,16 @@ function load_parameters(node::AAPairNode, parameter_file)
    end
   end
 
+  priors = Gamma[]
   for i=1:20
     for j=1:20
       if i != j
         S[i,i] -= S[i,j]
+      end
+      if j > i
+        theta = 2.0
+        k = (S[i,j]/theta)+1.0
+        push!(priors, Gamma(k,theta))
       end
     end
   end
@@ -165,6 +183,12 @@ function load_parameters(node::AAPairNode, parameter_file)
   for i=1:20
     eqfreqs[i] = parse(Float64, spl[i])
   end
+
+  #=
+  node.diagsum = 0.0
+  for i=1:20
+    node.diagsum += -S[i,i]
+  end=#
 
   set_parameters(node, eqfreqs, S, 1.0)
 end
@@ -180,7 +204,7 @@ end
 
 function get_data_lik(node::AAPairNode, x0::Int, xt::Int, t::Float64)
   if x0 > 0 && xt > 0
-    set_parameters(node, t)
+    set_parameters(node, node.branchscale*t)
     return node.logeqfreqs[x0] + node.logPt[x0,xt]
   elseif x0 > 0
     return node.logeqfreqs[x0]
@@ -195,7 +219,7 @@ export sample
 function sample(node::AAPairNode, rng::AbstractRNG, x0::Int, xt::Int, t::Float64)
   a = x0
   b = xt
-  set_parameters(node, t)
+  set_parameters(node, node.branchscale*t)
   if a <= 0 && b <= 0
     a = UtilsModule.sample(rng, node.eqfreqs)
     b = UtilsModule.sample(rng, node.Pt[a,:])
@@ -206,24 +230,3 @@ function sample(node::AAPairNode, rng::AbstractRNG, x0::Int, xt::Int, t::Float64
   end
   return a,b
 end
-
-#pairnode = AAPairNode()
-#load_parameters(pairnode, "/home/michael/dev/moju/lg_LG.PAML.txt")
-
-#=
-rng = MersenneTwister(2204104198511)
-println(sample(pairnode, rng, 0, 0,1.0))
-println(sample(pairnode,rng,  1, 0,1.0))
-println(sample(pairnode,rng,  0, 5,1.0))
-println(sample(pairnode, rng,  8, 5,1.0))
-=#
-#println(pairnode.Q)
-#println(pairnode.Pt)
-#=
-set_parameters(pairnode,1.0)
-println(pairnode.Pt)
-set_parameters(pairnode,10.0)
-println(pairnode.Pt)
-set_parameters(pairnode,100.0)
-println(pairnode.Pt)
-=#

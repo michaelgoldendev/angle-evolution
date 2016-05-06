@@ -1,38 +1,47 @@
 #=
-using ProfileView
+addprocs(2)
 
 #addprocs(CPU_CORES)
-@everywhere include("PairHMM.jl")
-#train()
-@profile train()
-ProfileView.svgwrite("profile_results.svg")
-profilewriter = open("profile.log", "w")
-Profile.print(profilewriter)
-=#
-#push!(LOAD_PATH, pwd())
-#println(pwd())
 
-
-addprocs(4)
-
-#addprocs(CPU_CORES)
 
 @everywhere include("UtilsModule.jl")
 @everywhere include("NodesModule.jl")
+@everywhere include("Cornercut.jl")
+@everywhere include("StatisticalAlignmentHMM.jl")
 @everywhere include("PairHMM.jl")
-train()
+
+train()=#
 
 #include("PairHMM.jl")
 #train()
 
 #include("PairHMM.jl")
 #mlalign()
-
 #=
 include("UtilsModule.jl")
 include("NodesModule.jl")
+include("Cornercut.jl")
+include("StatisticalAlignmentHMM.jl")
 include("PairHMM.jl")
 
-test()=#
+#simulatestationary()
+#analysejumps()
+=#
+#=
+addprocs(2)
+@everywhere include("AcceptanceLogger.jl")
+@everywhere include("UtilsModule.jl")
+@everywhere include("NodesModule.jl")
+@everywhere include("Cornercut.jl")
+@everywhere include("StatisticalAlignmentHMM.jl")
+@everywhere include("PairHMM.jl")
+=#
 
-#train()
+include("AcceptanceLogger.jl")
+include("UtilsModule.jl")
+include("NodesModule.jl")
+include("Cornercut.jl")
+include("StatisticalAlignmentHMM.jl")
+include("PairHMM.jl")
+
+computemarginallikelihoods()

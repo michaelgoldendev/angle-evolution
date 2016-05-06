@@ -1,6 +1,7 @@
 using DataStructures
 #using Formatting
 
+
 module UtilsModule
   include("AcceptanceLogger.jl")
   include("AngleUtils.jl")
@@ -26,7 +27,7 @@ module UtilsModule
   function safelog(x::Float64)
     if x < 0.0
       println("X=",x)
-      return -Inf
+      return -1e10
     else
       return log(x)
     end
@@ -42,23 +43,49 @@ module UtilsModule
 
 
   function logsumexp(a::Float64, b::Float64)
-      if a == -Inf
+      #=
+      if a == -Inf || isnan(a)
+        if isnan(b)
+          return -1e10
+        end
         return b
-      elseif b == -Inf
+      elseif b == -Inf || isnan(b)
+        if isnan(a)
+          return -1e10
+        end
         return a
       elseif a < b
         return b + log1p(quickExp(a-b))
       else
         return a + log1p(quickExp(b-a))
-      end
+      end=#
 
-      #=
-      mn, mx = orderpair(a,b)
-      #mx = max(a,b)
-      #mn = min(a,b)
-      return mx + log1p(quickExp(mn-mx))
-      #return mx + log(quickExp(a-mx)+quickExp(b-mx))
-      =#
+      if a == -Inf || isnan(a)
+        if isnan(b)
+          return -Inf
+        end
+        return b
+      elseif b == -Inf || isnan(b)
+        if isnan(a)
+          return -Inf
+        end
+        return a
+      else
+        v = a - b
+        if v < 0.0
+          if v < -20.0
+            return b
+          else
+            return b + log1p(exp(v))
+          end
+        else
+          if v > 20.0
+            return a
+          else
+            return a + log1p(exp(-v))
+          end
+        end
+      end
   end
 
 
@@ -69,6 +96,32 @@ module UtilsModule
         sum = logsumexp(sum, a)
       end
       return sum
+  end
+
+  export logsumexpstable
+  function logsumexpstable(v::Array{Float64,1}, start::Int, stop::Int)
+    if start == stop
+      return v[start]
+    elseif start+1 == stop
+      a = v[start]
+      b = v[stop]
+      v = a - b
+      if v < 0.0
+        return b + log1p(exp(v))
+      else
+        return a + log1p(exp(-v))
+      end
+    else
+      len = div(stop-start,2)
+      a = logsumexpstable(v,start,start+len-1)
+      b = logsumexpstable(v,start+len,stop)
+      v = a - b
+      if v < 0.0
+        return b + log1p(exp(v))
+      else
+        return a + log1p(exp(-v))
+      end
+    end
   end
 
   function sample(rng::AbstractRNG, v::Array{Float64})

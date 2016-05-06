@@ -7,23 +7,36 @@ sscharsshort = "HSC"
 ssmap = Int[1,2,2,1,1,3,3,3] # 1=helix, 2=sheet, 3=coil
 
 MISSING_ANGLE = -1000.0
-ANGLE_ERROR_KAPPA = 500.0
+ANGLE_ERROR_KAPPA = 600.0
+
+encoding = "123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!@#^&*()-+=?<>"
+export getstatestring
+function getstatestring(states::Array{Int,1})
+  s1 = ""
+  for i=1:length(states)
+      s1 = string(s1, encoding[states[i]])
+  end
+
+  return s1
+end
 
 export Sequence
 type Sequence
+  name::AbstractString
   length::Int
   seq::Array{Int, 1}
   phi::Array{Float64, 1}
   psi::Array{Float64, 1}
-  phi_error::Array{Float64, 1}
-  psi_error::Array{Float64, 1}
+  phi_obs::Array{Float64, 1}
+  psi_obs::Array{Float64, 1}
   angle_error_kappa::Float64
   error_distribution::VonMisesDensity
   inputss::Array{Int,1}
   ss::Array{Int,1}
+  errorll::Float64
 
   function Sequence(length::Int)
-    new(length, zeros(Int,length), ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA),zeros(Int,length),zeros(Int,length))
+    new("", length, zeros(Int,length), ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ones(Float64,length)*MISSING_ANGLE, ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA),zeros(Int,length),zeros(Int,length),-Inf)
   end
 
   function Sequence(seq::AbstractString)
@@ -33,7 +46,7 @@ type Sequence
       s[i] = search(aminoacids, seq[i])
     end
 
-    return new(len, s, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA),zeros(Int,len),zeros(Int,len))
+    return new("", len, s, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ones(Float64,len)*MISSING_ANGLE, ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA),zeros(Int,len),zeros(Int,len),-Inf)
   end
 
   function Sequence(seq::AbstractString, phi::Array{Float64,1}, psi::Array{Float64,1})
@@ -43,7 +56,7 @@ type Sequence
       s[i] = search(aminoacids, seq[i])
     end
 
-    return new(len, s, phi, psi, copy(phi), copy(psi), ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA), zeros(Int,len),zeros(Int,len))
+    return new("", len, s, phi, psi, deepcopy(phi), deepcopy(psi), ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA), zeros(Int,len),zeros(Int,len),-Inf)
   end
 
   function Sequence(seq::AbstractString, phi::Array{Float64,1}, psi::Array{Float64,1}, ss::AbstractString)
@@ -64,11 +77,11 @@ type Sequence
       end
     end
 
-    return new(len, s, phi, psi, copy(phi), copy(psi), ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA), inputss, ssint)
+    return new("", len, s, phi, psi, deepcopy(phi), deepcopy(psi), ANGLE_ERROR_KAPPA, VonMisesDensity(0.0, ANGLE_ERROR_KAPPA), inputss, ssint,-Inf)
   end
 
   function Sequence(sequence::Sequence)
-    return new(sequence.length, copy(sequence.seq), copy(sequence.phi), copy(sequence.psi), copy(sequence.phi_error), copy(sequence.psi_error), sequence.angle_error_kappa, VonMisesDensity(0.0, sequence.angle_error_kappa), copy(sequence.inputss), copy(sequence.ss))
+    return new(sequence.name, sequence.length, deepcopy(sequence.seq), deepcopy(sequence.phi), deepcopy(sequence.psi), deepcopy(sequence.phi_obs), deepcopy(sequence.psi_obs), sequence.angle_error_kappa, VonMisesDensity(0.0, sequence.angle_error_kappa), deepcopy(sequence.inputss), deepcopy(sequence.ss), sequence.errorll)
   end
 end
 
@@ -79,17 +92,18 @@ type SequencePair
   seq2::Sequence
   t::Float64
   single::Bool
+  cornercut::Int
 
   function SequencePair()
-    new(0,Sequence(),Sequence(),1.0,false)
+    new(0,Sequence(),Sequence(),1.0,false, 1000000)
   end
 
   function SequencePair(id::Int, seq1::Sequence, seq2::Sequence)
-    return new(id, seq1, seq2, 1.0,false)
+    return new(id, seq1, seq2, 1.0,false, 1000000)
   end
 
   function SequencePair(pair::SequencePair)
-    return new(pair.id,pair.seq1, pair.seq2, pair.t,false)
+    return new(pair.id,pair.seq1, pair.seq2, pair.t,false, pair.cornercut)
   end
 end
 
@@ -128,28 +142,32 @@ type SequencePairSample
   states::Array{Int,1}
   aligned::Bool
   single::Bool
+  regimes::Array{Int,1}
 
   function SequencePairSample()
     align1 = Int[]
     align2 = Int[]
     states = Int[]
-    return new(SequencePair(), PairParameters(params), align1, align2, states, false, false)
+    regimes = Int[]
+    return new(SequencePair(), PairParameters(params), align1, align2, states, false, regimes)
   end
 
   function SequencePairSample(seqpair::SequencePair, params::PairParameters)
     align1 = Int[]
     align2 = Int[]
     states = Int[]
-    return new(seqpair, PairParameters(params), align1, align2, states, false, false)
+    regimes = Int[]
+    return new(seqpair, PairParameters(params), align1, align2, states, false, false, regimes)
   end
 
    function SequencePairSample(seqpair::SequencePair, align1::Array{Int,1}, align2::Array{Int,1})
     states = Int[]
-    return new(seqpair, PairParameters(), align1, align2, states, false, false)
+    regimes = Int[]
+    return new(seqpair, PairParameters(), align1, align2, states, false, false, regimes)
   end
 
   function SequencePairSample(sample::SequencePairSample)
-    return new(SequencePair(sample.seqpair), PairParameters(sample.params), copy(sample.align1), copy(sample.align2), copy(sample.states), sample.aligned, sample.single)
+    return new(SequencePair(sample.seqpair), PairParameters(sample.params), copy(sample.align1), copy(sample.align2), copy(sample.states), sample.aligned, sample.single, copy(sample.regimes))
   end
 end
 
@@ -230,12 +248,25 @@ function getsequencestates(align1::Array{Int,1}, align2::Array{Int,1}, states::A
   return states1, states2
 end
 
+export getaasequence
+function getaasequence(seq1::Sequence)
+  s1 = ""
+  for i=1:seq1.length
+    if seq1.seq[i] > 0
+      s1 = string(s1, aminoacids[seq1.seq[i]])
+    else
+      s1 = string(s1,"-")
+    end
+  end
+  return s1
+end
+
 export getaminoacidalignment
 function getaminoacidalignment(seq1::Sequence, align1::Array{Int,1})
   s1 = ""
   index = 1
   for i=1:length(align1)
-    if align1[i] > 0
+    if align1[i] > 0 && seq1.seq[index] > 0
       s1 = string(s1, aminoacids[seq1.seq[index]])
       index += 1
     else
@@ -249,11 +280,15 @@ end
 export getssalignment
 function getssalignment(seq1::Sequence, align1::Array{Int,1})
   s1 = ""
-  index = 1
   for i=1:length(align1)
     if align1[i] > 0
-      s1 = string(s1, sschars[seq1.inputss[index]])
-      index += 1
+      if seq1.inputss[align1[i]] == 0
+        s1 = string(s1, "-")
+      else
+        #s1 = string(s1, sschars[seq1.inputss[align1[i]]])
+        #println("SS",seq1.inputss[align1[i]])
+        s1 = string(s1, sscharsshort[ssmap[seq1.inputss[align1[i]]]])
+      end
     else
        s1 = string(s1, "-")
     end
@@ -331,9 +366,11 @@ function load_sequences_and_alignments(datafile)
   id = 1
   pairs = SequencePairSample[]
   aligned=false
+  title = ""
   for fileline in eachline(f)
     ln = strip(fileline)
     if length(ln) > 0 && ln[1] == '>'
+      title = ln
       line = 0
     end
 
@@ -388,13 +425,18 @@ function load_sequences_and_alignments(datafile)
 
     if line == 11
       if length(seq2) > 0
-        seqpair = SequencePair(id, Sequence(seq1,phi1,psi1,ss1), Sequence(seq2,phi2,psi2,ss2))
+        seq1 = Sequence(seq1,phi1,psi1,ss1)
+        seq1.name = split(title, r">| |\t")[2]
+        seq2 = Sequence(seq2,phi2,psi2,ss2)
+        seq2.name = split(title, r">| |\t")[3]
+        seqpair = SequencePair(id, seq1, seq2)
         id += 1
         sample = SequencePairSample(seqpair,align1,align2)
         sample.aligned = aligned
         push!(pairs, sample)
       else
         seq = Sequence(seq1,phi1,psi1,ss1)
+        seq.name = split(title, r">| |\t")[2]
         id += 1
         align1 = Int[i for i=1:seq.length]
         align2 = zeros(Int,seq.length)
@@ -414,9 +456,9 @@ function load_sequences_and_alignments(datafile)
 end
 
 export OBSERVED_DATA
-OBSERVED_DATA = 0
+OBSERVED_DATA = 1
 export MISSING_DATA
-MISSING_DATA = 1
+MISSING_DATA = 0
 export masksequences
 function masksequences(seq1::Sequence, seq2::Sequence, mask::Array{Int,1})
   newseq1 = Sequence(seq1)
@@ -428,22 +470,26 @@ function masksequences(seq1::Sequence, seq2::Sequence, mask::Array{Int,1})
     if mask[2] == MISSING_DATA
       newseq1.phi[i] = -1000.0
       newseq1.psi[i] = -1000.0
-      newseq1.phi_error[i] = -1000.0
-      newseq1.psi_error[i] = -1000.0
+      newseq1.phi_obs[i] = -1000.0
+      newseq1.psi_obs[i] = -1000.0
     end
-    newseq1.ss[i] = 0
+    if mask[3] == MISSING_DATA
+      newseq1.ss[i] = 0
+    end
   end
   for i=1:newseq2.length
-    if mask[3] == MISSING_DATA
+    if mask[4] == MISSING_DATA
       newseq2.seq[i] = 0
     end
-    if mask[4] == MISSING_DATA
+    if mask[5] == MISSING_DATA
       newseq2.phi[i] = -1000.0
       newseq2.psi[i] = -1000.0
-      newseq2.phi_error[i] = -1000.0
-      newseq2.psi_error[i] = -1000.0
+      newseq2.phi_obs[i] = -1000.0
+      newseq2.psi_obs[i] = -1000.0
     end
-    newseq2.ss[i] = 0
+    if mask[6] == MISSING_DATA
+      newseq2.ss[i] = 0
+    end
   end
 
   return newseq1, newseq2

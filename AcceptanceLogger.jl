@@ -28,12 +28,17 @@ function clear!(logger::AcceptanceLogger)
     logger.total = counter(AbstractString)
 end
 
+export getacceptanceratio
+function getacceptanceratio(logger::AcceptanceLogger, move::AbstractString)
+  return logger.accepted[move]/logger.total[move]
+end
+
 export list
 function list(logger::AcceptanceLogger)
     logkeys = sort([k for k in keys(logger.total)])
     ret = AbstractString[]
     for k in logkeys
-        ratio = fmt(".4f", logger.accepted[k]/logger.total[k])
+        ratio = Formatting.fmt(".4f", logger.accepted[k]/logger.total[k])
         total = logger.total[k]
         push!(ret, "$k=$ratio ($total)")
     end

@@ -3,6 +3,7 @@ using UtilsModule
 include("AAPairNode.jl")
 include("DiffusionNode.jl")
 include("SecondaryStructureNode.jl")
+include("Sequence.jl")
 
 export SwitchingNode
 type SwitchingNode
@@ -82,7 +83,6 @@ function get_data_lik_x0(node::SwitchingNode, x0::Int, phi_x0::Float64, psi_x0::
   pi_r1 = node.pi_r1
   pi_r2 = 1.0-pi_r1
   return logsumexp(log(pi_r1)+ll1, log(pi_r2)+ll2)
-  #return logsumexp(log(0.5)+ll1, log(0.5)+ll2)
 end
 
 export get_data_lik_xt
@@ -92,89 +92,10 @@ function get_data_lik_xt(node::SwitchingNode, x0::Int, phi_x0::Float64, psi_x0::
   pi_r1 = node.pi_r1
   pi_r2 = 1.0-pi_r1
   return logsumexp(log(pi_r1)+ll1, log(pi_r2)+ll2)
-  #return logsumexp(log(0.5)+ll1, log(0.5)+ll2)
 end
 
 export get_data_lik
 function get_data_lik(node::SwitchingNode, x0::Int, xt::Int, phi_x0::Float64, psi_x0::Float64, phi_xt::Float64, psi_xt::Float64, ss_x0::Int, ss_xt::Int, t::Float64)
-  #=
-  translik =  get_data_lik(node.aapairnode_r1, x0, xt, t) + get_data_lik(node.diffusion_r1, phi_x0, psi_x0, phi_xt, psi_xt, t)
-
-  switchll = get_data_lik(node.aapairnode_r1, x0) + get_data_lik(node.diffusion_r1, phi_x0, psi_x0)
-  switchll += get_data_lik(node.aapairnode_r2, xt) + get_data_lik(node.diffusion_r2, phi_xt, psi_xt)
-
-  probr1 = exp(-node.alpha*t)
-  probr2 = 1.0 - probr1
-
-  return logsumexp(log(probr1)+translik, log(probr2)+switchll)  =#
-  #=
-  pi_r1 = node.pi_r1
-  pi_r2 = 1.0-pi_r1
-  wt = exp(-node.alpha*t)
-  r1r1 = log(pi_r1*pi_r2*wt) + get_data_lik(node.aapairnode_r1, x0, xt, t) + get_data_lik(node.diffusion_r1, phi_x0, psi_x0, phi_xt, psi_xt, t) + get_data_lik(node.ss_r1.ctmc, ss_x0, ss_xt, t)
-  r1r2 = log(pi_r1*(1.0-pi_r2*wt)) + get_data_lik(node.aapairnode_r1, x0) + get_data_lik(node.diffusion_r1, phi_x0, psi_x0) + get_data_lik(node.ss_r1.ctmc, ss_x0) + get_data_lik(node.aapairnode_r2, xt) + get_data_lik(node.diffusion_r2, phi_xt, psi_xt) + get_data_lik(node.ss_r2.ctmc, ss_xt)
-  r2r1 = log(pi_r2*(1.0-pi_r1*wt)) + get_data_lik(node.aapairnode_r2, x0) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0) + get_data_lik(node.ss_r2.ctmc, ss_x0) + get_data_lik(node.aapairnode_r1, xt) + get_data_lik(node.diffusion_r1, phi_xt, psi_xt) + get_data_lik(node.ss_r1.ctmc, ss_xt)
-  r2r2 = log(pi_r2*pi_r1*wt) + get_data_lik(node.aapairnode_r2, x0, xt, t) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0, phi_xt, psi_xt, t) + get_data_lik(node.ss_r2.ctmc, ss_x0, ss_xt, t)
-  v = Float64[r1r1, r1r2, r2r1, r2r2]=#
-  #=
-  pi_r1 = node.pi_r1
-  pi_r2 = 1.0-pi_r1
-  wt = exp(-node.alpha*t)
-  r1r1 = log(pi_r1*(pi_r1+pi_r2*wt)) + get_data_lik(node.aapairnode_r1, x0, xt, t) + get_data_lik(node.diffusion_r1, phi_x0, psi_x0, phi_xt, psi_xt, t) + get_data_lik(node.ss_r1.ctmc, ss_x0, ss_xt, t)
-  logtransprob = log(pi_r1*pi_r2*(1.0-wt))
-  r1r2 = logtransprob + get_data_lik(node.aapairnode_r1, x0) + get_data_lik(node.diffusion_r1, phi_x0, psi_x0) + get_data_lik(node.ss_r1.ctmc, ss_x0) + get_data_lik(node.aapairnode_r2, xt) + get_data_lik(node.diffusion_r2, phi_xt, psi_xt) + get_data_lik(node.ss_r2.ctmc, ss_xt)
-  r2r1 = logtransprob + get_data_lik(node.aapairnode_r2, x0) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0) + get_data_lik(node.ss_r2.ctmc, ss_x0) + get_data_lik(node.aapairnode_r1, xt) + get_data_lik(node.diffusion_r1, phi_xt, psi_xt) + get_data_lik(node.ss_r1.ctmc, ss_xt)
-  r2r2 = log(pi_r2*(pi_r2+pi_r1*wt)) + get_data_lik(node.aapairnode_r2, x0, xt, t) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0, phi_xt, psi_xt, t) + get_data_lik(node.ss_r2.ctmc, ss_x0, ss_xt, t)
-  v = Float64[r1r1, r1r2, r2r1, r2r2]=#
-
-  #=
-  wt = exp(-node.alpha*t)
-  r1r1 = log(0.5*wt) + get_data_lik(node.aapairnode_r1, x0, xt, t) + get_data_lik(node.diffusion_r1, phi_x0, psi_x0, phi_xt, psi_xt, t) + get_data_lik(node.ss_r1.ctmc, ss_x0, ss_xt, t)
-  logtransprob = log(0.5*(1.0-wt))
-  r1r2 = logtransprob + get_data_lik(node.aapairnode_r1, x0) + get_data_lik(node.diffusion_r1, phi_x0, psi_x0) + get_data_lik(node.ss_r1.ctmc, ss_x0) + get_data_lik(node.aapairnode_r2, xt) + get_data_lik(node.diffusion_r2, phi_xt, psi_xt) + get_data_lik(node.ss_r2.ctmc, ss_xt)
-  r2r1 = logtransprob + get_data_lik(node.aapairnode_r2, x0) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0) + get_data_lik(node.ss_r2.ctmc, ss_x0) + get_data_lik(node.aapairnode_r1, xt) + get_data_lik(node.diffusion_r1, phi_xt, psi_xt) + get_data_lik(node.ss_r1.ctmc, ss_xt)
-  r2r2 = log(0.5*wt) + get_data_lik(node.aapairnode_r2, x0, xt, t) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0, phi_xt, psi_xt, t) + get_data_lik(node.ss_r2.ctmc, ss_x0, ss_xt, t)
-  v = Float64[r1r1, r1r2, r2r1, r2r2]=#
-
-  #=
-  pi_r1 = node.pi_r1
-  pi_r2 = 1.0-pi_r1
-  wt = exp(-node.alpha*t)
-  r1r1 = log(pi_r1*wt) + get_data_lik(node.aapairnode_r1, x0, xt, t) + get_data_lik(node.diffusion_r1, phi_x0, psi_x0, phi_xt, psi_xt, t) + get_data_lik(node.ss_r1.ctmc, ss_x0, ss_xt, t)
-  r1r2 = log(0.5*(1-wt)) + get_data_lik(node.aapairnode_r1, x0) + get_data_lik(node.diffusion_r1, phi_x0, psi_x0) + get_data_lik(node.ss_r1.ctmc, ss_x0) + get_data_lik(node.aapairnode_r2, xt) + get_data_lik(node.diffusion_r2, phi_xt, psi_xt) + get_data_lik(node.ss_r2.ctmc, ss_xt)
-  r2r1 = log(0.5*(1-wt)) + get_data_lik(node.aapairnode_r2, x0) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0) + get_data_lik(node.ss_r2.ctmc, ss_x0) + get_data_lik(node.aapairnode_r1, xt) + get_data_lik(node.diffusion_r1, phi_xt, psi_xt) + get_data_lik(node.ss_r1.ctmc, ss_xt)
-  r2r2 = log(pi_r2*wt) + get_data_lik(node.aapairnode_r2, x0, xt, t) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0, phi_xt, psi_xt, t) + get_data_lik(node.ss_r2.ctmc, ss_x0, ss_xt, t)
-  v = Float64[r1r1, r1r2, r2r1, r2r2]=#
-
-  #=
-  pi_r1 = node.pi_r1
-  pi_r2 = 1.0-pi_r1
-  wt = exp(-node.alpha*t)
-  r1r1 = log(pi_r1*wt) + get_data_lik(node.aapairnode_r1, x0, xt, t) + get_data_lik(node.diffusion_r1, phi_x0, psi_x0, phi_xt, psi_xt, t) + get_data_lik(node.ss_r1.ctmc, ss_x0, ss_xt, t)
-  log_r1x0 =  get_data_lik(node.aapairnode_r1, x0) + get_data_lik(node.diffusion_r1, phi_x0, psi_x0) + get_data_lik(node.ss_r1.ctmc, ss_x0)
-  log_r1xt =  get_data_lik(node.aapairnode_r1, xt) + get_data_lik(node.diffusion_r1, phi_xt, psi_xt) + get_data_lik(node.ss_r1.ctmc, ss_xt)
-  log_r2x0 =  get_data_lik(node.aapairnode_r2, x0) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0) + get_data_lik(node.ss_r2.ctmc, ss_x0)
-  log_r2xt =  get_data_lik(node.aapairnode_r2, xt) + get_data_lik(node.diffusion_r2, phi_xt, psi_xt) + get_data_lik(node.ss_r2.ctmc, ss_xt)
-  r1a = log(pi_r1*pi_r1*(1-wt)) + log_r1x0 + log_r1xt
-  r1b = log(pi_r1*pi_r2*(1-wt)) + log_r1x0 + log_r2xt
-  r2c = log(pi_r2*pi_r1*(1-wt)) + log_r2x0 + log_r1xt
-  r2d = log(pi_r2*pi_r2*(1-wt)) + log_r2x0 + log_r2xt
-  r2r2 = log(pi_r2*wt) + get_data_lik(node.aapairnode_r2, x0, xt, t) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0, phi_xt, psi_xt, t) + get_data_lik(node.ss_r2.ctmc, ss_x0, ss_xt, t)
-  v = Float64[r1r1, r1a, r1b, r2c, r2d, r2r2]=#
-
-  # single jump model
-  #=
-  pi_r1 = node.pi_r1
-  pi_r2 = 1.0-pi_r1
-  wt = exp(-node.alpha*t)
-  r1r1 = log(pi_r1*(pi_r1+pi_r2*wt)) + get_data_lik(node.aapairnode_r1, x0, xt, t) + get_data_lik(node.diffusion_r1, phi_x0, psi_x0, phi_xt, psi_xt, t) + get_data_lik(node.ss_r1.ctmc, ss_x0, ss_xt, t)
-  logtransprob = log(pi_r1*pi_r2*(1.0-wt))
-  r1r2 = logtransprob + get_data_lik(node.aapairnode_r1, x0) + get_data_lik(node.diffusion_r1, phi_x0, psi_x0) + get_data_lik(node.ss_r1.ctmc, ss_x0) + get_data_lik(node.aapairnode_r2, xt) + get_data_lik(node.diffusion_r2, phi_xt, psi_xt) + get_data_lik(node.ss_r2.ctmc, ss_xt)
-  r2r1 = logtransprob + get_data_lik(node.aapairnode_r2, x0) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0) + get_data_lik(node.ss_r2.ctmc, ss_x0) + get_data_lik(node.aapairnode_r1, xt) + get_data_lik(node.diffusion_r1, phi_xt, psi_xt) + get_data_lik(node.ss_r1.ctmc, ss_xt)
-  r2r2 = log(pi_r2*(pi_r2+pi_r1*wt)) + get_data_lik(node.aapairnode_r2, x0, xt, t) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0, phi_xt, psi_xt, t) + get_data_lik(node.ss_r2.ctmc, ss_x0, ss_xt, t)
-  v = Float64[r1r1, r1r2, r2r1, r2r2]
-  =#
-
   pi_r1 = node.pi_r1
   pi_r2 = 1.0-pi_r1
   wt = exp(-node.alpha*t)
@@ -184,20 +105,12 @@ function get_data_lik(node::SwitchingNode, x0::Int, xt::Int, phi_x0::Float64, ps
   r2r1 = logtransprob + get_data_lik(node.aapairnode_r2, x0) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0) + get_data_lik(node.ss_r2.ctmc, ss_x0) + get_data_lik(node.aapairnode_r1, xt) + get_data_lik(node.diffusion_r1, phi_xt, psi_xt) + get_data_lik(node.ss_r1.ctmc, ss_xt)
   r2r2 = log(pi_r2*(wt+pi_r2*(1.0-wt))) + get_data_lik(node.aapairnode_r2, x0, xt, t) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0, phi_xt, psi_xt, t) + get_data_lik(node.ss_r2.ctmc, ss_x0, ss_xt, t)
   v = Float64[r1r1, r1r2, r2r1, r2r2]
+
   return logsumexp(v)
 end
 
+export get_regime_logprobs
 function get_regime_logprobs(node::SwitchingNode, x0::Int, xt::Int, phi_x0::Float64, psi_x0::Float64, phi_xt::Float64, psi_xt::Float64, ss_x0::Int, ss_xt::Int, t::Float64)
-  #=pi_r1 = node.pi_r1
-  pi_r2 = 1.0-pi_r1
-  wt = exp(-node.alpha*t)
-  r1r1 = log(pi_r1*(pi_r1+pi_r2*wt)) + get_data_lik(node.aapairnode_r1, x0, xt, t) + get_data_lik(node.diffusion_r1, phi_x0, psi_x0, phi_xt, psi_xt, t) + get_data_lik(node.ss_r1.ctmc, ss_x0, ss_xt, t)
-  logtransprob = log(pi_r1*pi_r2*(1.0-wt))
-  r1r2 = logtransprob + get_data_lik(node.aapairnode_r1, x0) + get_data_lik(node.diffusion_r1, phi_x0, psi_x0) + get_data_lik(node.ss_r1.ctmc, ss_x0) + get_data_lik(node.aapairnode_r2, xt) + get_data_lik(node.diffusion_r2, phi_xt, psi_xt) + get_data_lik(node.ss_r2.ctmc, ss_xt)
-  r2r1 = logtransprob + get_data_lik(node.aapairnode_r2, x0) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0) + get_data_lik(node.ss_r2.ctmc, ss_x0) + get_data_lik(node.aapairnode_r1, xt) + get_data_lik(node.diffusion_r1, phi_xt, psi_xt) + get_data_lik(node.ss_r1.ctmc, ss_xt)
-  r2r2 = log(pi_r2*(pi_r2+pi_r1*wt)) + get_data_lik(node.aapairnode_r2, x0, xt, t) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0, phi_xt, psi_xt, t) + get_data_lik(node.ss_r2.ctmc, ss_x0, ss_xt, t)
-  v = Float64[r1r1, r1r2, r2r1, r2r2]=#
-
   pi_r1 = node.pi_r1
   pi_r2 = 1.0-pi_r1
   wt = exp(-node.alpha*t)
@@ -207,6 +120,46 @@ function get_regime_logprobs(node::SwitchingNode, x0::Int, xt::Int, phi_x0::Floa
   r2r1 = logtransprob + get_data_lik(node.aapairnode_r2, x0) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0) + get_data_lik(node.ss_r2.ctmc, ss_x0) + get_data_lik(node.aapairnode_r1, xt) + get_data_lik(node.diffusion_r1, phi_xt, psi_xt) + get_data_lik(node.ss_r1.ctmc, ss_xt)
   r2r2 = log(pi_r2*(wt+pi_r2*(1.0-wt))) + get_data_lik(node.aapairnode_r2, x0, xt, t) + get_data_lik(node.diffusion_r2, phi_x0, psi_x0, phi_xt, psi_xt, t) + get_data_lik(node.ss_r2.ctmc, ss_x0, ss_xt, t)
   v = Float64[r1r1, r1r2, r2r1, r2r2]
+end
+
+export get_regime_pair_lik
+function get_regime_pair_lik(node::SwitchingNode, r1::Int, r2::Int, t::Float64)
+  pi_r1 = node.pi_r1
+  pi_r2 = 1.0-pi_r1
+  wt = exp(-node.alpha*t)
+  if r1 == 1 && r2 == 1
+    return log(pi_r1*(wt+pi_r1*(1.0-wt)))
+  elseif (r1 == 1 && r2 == 2) || (r1 == 2 && r2 == 1)
+    return log(pi_r1*pi_r2*(1.0-wt))
+  else
+    return log(pi_r2*(wt+pi_r2*(1.0-wt)))
+  end
+end
+
+export sample_regimes
+function sample_regimes(node::SwitchingNode, rng::AbstractRNG, seq1::Sequence, seq2::Sequence, i::Int, j::Int, t::Float64)
+  x0 = 0
+  phi_x0 = -1000.0
+  psi_x0 = -1000.0
+  ss_x0 = 0
+  if i > 0
+    x0 = seq1.seq[i]
+    phi_x0 = seq1.phi[i]
+    psi_x0 = seq1.psi[i]
+    ss_x0 = seq1.ss[i]
+  end
+
+  xt = 0
+  phi_xt = -1000.0
+  psi_xt = -1000.0
+  ss_xt = 0
+  if j > 0
+    xt = seq2.seq[j]
+    phi_xt = seq2.phi[j]
+    psi_xt = seq2.psi[j]
+    ss_xt = seq2.ss[j]
+  end
+  return GumbelSample(rng, get_regime_logprobs(node, x0, xt, phi_x0, psi_x0, phi_xt, psi_xt, ss_x0, ss_xt, t))
 end
 
 export sample
@@ -215,32 +168,40 @@ function sample(rng::AbstractRNG, node::SwitchingNode, x0::Int, xt::Int, phi_x0:
   v = get_regime_logprobs(node, x0, xt, phi_x0, psi_x0, phi_xt, psi_xt, ss_x0, ss_xt, t)
   c = UtilsModule.GumbelSample(rng,v)
 
+  ret2 = (x0,xt,(phi_x0,phi_xt),(psi_x0,psi_xt),ss_x0,ss_xt)
+  ret = ret2
 
   if c == 1
     a,b = sample(node.aapairnode_r1, rng, x0, xt, t)
     phi,psi = sample_phi_psi(node.diffusion_r1, rng, phi_x0, phi_xt, psi_x0, psi_xt, t)
     c,d = sample(node.ss_r1.ctmc, rng, ss_x0, ss_xt, t)
-    return a,b,phi,psi,c,d
+    ret = (a,b,phi,psi,c,d)
   elseif c == 2
     a = sample(node.aapairnode_r1, rng, x0, 0, t)[1]
     b = sample(node.aapairnode_r2, rng, xt, 0, t)[1]
-    phi = sample_phi_psi(node.diffusion_r1, rng, phi_x0, -1000.0, psi_x0, -1000.0, t)[1]
-    psi = sample_phi_psi(node.diffusion_r2, rng, -1000.0, phi_xt, -1000.0, psi_xt, t)[2]
-    c = sample(node.ss_r1.ctmc, rng, ss_x0, 0, t)
-    d = sample(node.ss_r2.ctmc, rng, ss_xt, 0, t)
-    return a,b,phi,psi,c,d
+    phi1, psi1 = sample_phi_psi(node.diffusion_r1, rng, phi_x0, -1000.0, psi_x0, -1000.0, t)
+    phi2, psi2 = sample_phi_psi(node.diffusion_r2, rng, -1000.0, phi_xt, -1000.0, psi_xt, t)
+    phi = (phi1[1],phi2[2])
+    psi = (psi1[1],psi2[2])
+    c = sample(node.ss_r1.ctmc, rng, ss_x0, 0, t)[1]
+    d = sample(node.ss_r2.ctmc, rng, ss_xt, 0, t)[1]
+    ret = (a,b,phi,psi,c,d)
   elseif c == 3
     a = sample(node.aapairnode_r2, rng, x0, 0, t)[1]
     b = sample(node.aapairnode_r1, rng, xt, 0, t)[1]
-    phi = sample_phi_psi(node.diffusion_r2, rng, phi_x0, -1000.0, psi_x0, -1000.0, t)[1]
-    psi = sample_phi_psi(node.diffusion_r1, rng, -1000.0, phi_xt, -1000.0, psi_xt, t)[2]
-    c = sample(node.ss_r2.ctmc, rng, ss_x0, 0, t)
-    d = sample(node.ss_r1.ctmc, rng, ss_xt, 0, t)
-    return a,b,phi,psi,c,d
+    phi1, psi1 = sample_phi_psi(node.diffusion_r2, rng, phi_x0, -1000.0, psi_x0, -1000.0, t)
+    phi2, psi2 = sample_phi_psi(node.diffusion_r1, rng, -1000.0, phi_xt, -1000.0, psi_xt, t)
+    phi = (phi1[1],phi2[2])
+    psi = (psi1[1],psi2[2])
+    c = sample(node.ss_r2.ctmc, rng, ss_x0, 0, t)[1]
+    d = sample(node.ss_r1.ctmc, rng, ss_xt, 0, t)[1]
+    ret = (a,b,phi,psi,c,d)
   else
     a,b = sample(node.aapairnode_r2, rng, x0, xt, t)
     phi,psi = sample_phi_psi(node.diffusion_r2, rng, phi_x0, phi_xt, psi_x0, psi_xt, t)
     c,d = sample(node.ss_r2.ctmc, rng, ss_x0, ss_xt, t)
-    return a,b,phi,psi,c,d
+    ret = (a,b,phi,psi,c,d)
   end
+  return ret
 end
+
