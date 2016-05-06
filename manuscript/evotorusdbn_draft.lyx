@@ -1,0 +1,1892 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine natbib_authoryear
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+A pairwise evolutionary model of protein sequence and structural conformation
+ D6
+\end_layout
+
+\begin_layout Abstract
+We give a generative evolutionary model of protein sequence and structural
+ conformation.
+ Recently, there have been stochastic models of structural evolution, which
+ have shown that the inclusion of structural information leads to more reliable
+ estimation of evolutionary parameters.
+ We introduce a new pairwise evolutionary model which takes into account
+ local dependencies between sequence and structural evolution.
+ We treat each protein in a pair as random walk in space through the use
+ of angular conformations.
+ A coupling in our model is such that an amino acid change can lead to a
+ jump in angle conformation and a change in diffusion process.
+ This model is comparatively more realistic than previous stochastic models,
+ since it allows improved understanding of the relationship between sequence
+ and structure evolution.
+ The generative nature of our model allows us to provide evidence of it's
+ validity.
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset toc
+LatexCommand tableofcontents
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection*
+List of figures
+\end_layout
+
+\begin_layout Enumerate
+Diagram of model (JASSC) - done
+\end_layout
+
+\begin_layout Enumerate
+Dihedral angle representation - done
+\end_layout
+
+\begin_layout Enumerate
+Confirmatory Ramachandran plots: all angles, proline, glycine - partly done
+\end_layout
+
+\begin_layout Enumerate
+A selection of interesting hidden states - to do
+\end_layout
+
+\begin_layout Enumerate
+Homology modelling benchmarks (more combinations: s1+s2+angles1) - to do
+\end_layout
+
+\begin_layout Enumerate
+Annotation of 3D protein with jumps - to do
+\end_layout
+
+\begin_layout Enumerate
+Some plots depicting evolution / rates of evolution (for example: histograms
+ or box and whisker plots of branch length) - to do
+\end_layout
+
+\begin_layout Enumerate
+Diagram of alignment HMM - to do
+\end_layout
+
+\begin_layout Paragraph
+General notes
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Standard
+Recently it has been realised that one can make a joint stochastic model
+ of evolution which takes into account simultaneous alignment of protein
+ sequence and 3D structure (
+\begin_inset CommandInset citation
+LatexCommand citet
+key "challis2012stochastic,herman2014simultaneous"
+
+\end_inset
+
+).
+ These papers also point out limitations of earlier non-probabilistic methods,
+ as well as the benefits of simultaneously taking protein sequence and 3D
+ structure into account.
+\end_layout
+
+\begin_layout Standard
+We present a pairwise model which takes into account local dependencies
+ between sequence and structural evolution, providing more realism; this
+ is a departure from 
+\begin_inset CommandInset citation
+LatexCommand cite
+key "challis2012stochastic,herman2014simultaneous"
+
+\end_inset
+
+.
+ We treat each protein in a pair as a random walk in space, through the
+ use of the phi and psi dihedral angle representations.
+ This bypasses the need for structural alignment, unlike in 
+\begin_inset CommandInset citation
+LatexCommand nocite
+key "challis2012stochastic,herman2014simultaneous"
+
+\end_inset
+
+.
+ We use a stochastic diffusion process on phi and psi dihedral angles (See
+ December abstract Eduardo), as well as the TKF92 model of insertion and
+ deletion.
+ We introduce a coupling in our model such that an amino acid change can
+ lead to a jump in the phi and psi dihedral angles and a change in diffusion
+ process.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename dihedral_angles_mardia.eps
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Dihedral-angle-representation"
+
+\end_inset
+
+Dihedral angle representation.
+ A very small section of the protein backbone is displayed in atomic detail:
+ each amino acid contains four backbone atoms (
+\begin_inset Formula $N$
+\end_inset
+
+, 
+\begin_inset Formula $C_{\alpha}$
+\end_inset
+
+, 
+\begin_inset Formula $C$
+\end_inset
+
+, 
+\begin_inset Formula $O$
+\end_inset
+
+).
+ The side chain is represented by one pseudo-atom (
+\begin_inset Formula $SC$
+\end_inset
+
+).
+ The dihedral angles 
+\begin_inset Formula $\phi,\psi$
+\end_inset
+
+ are shown.
+ This gives a chemical representation of a typical amino acid.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Paragraph
+Comparison with previous work
+\end_layout
+
+\begin_layout Standard
+NEED TO COMMENT ON 2014.
+\end_layout
+
+\begin_layout Standard
+Both the 2012 (Challis and Schmidler) and 2014 (Herman and Schmidler) papers
+ use the TKF92 model together with OU diffusions, but on atomic coordinates
+ of C-alpha atoms rather than on dihedral angles, as in our model.
+ Overall, we have various modelling virtues that provide more realism than
+ the 2012 and 2014 papers.
+ Our model has the potential for extension to the full phylogeny, rather
+ than just pairs of proteins as we have considered in the current work.
+\end_layout
+
+\begin_layout Standard
+
+\end_layout
+
+\begin_layout Section
+Methods
+\end_layout
+
+\begin_layout Subsubsection
+A pairwise evolutionary model
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename kanti_model2.svg
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:hmm_diagram"
+
+\end_inset
+
+The graph represents the architect of TorusDBN where each 
+\begin_inset Formula $H$
+\end_inset
+
+ along the horizontal axis represents a node, and the edges with arrows
+ encode the conditional independencies between the observed variables A,
+ S and X for given 
+\begin_inset Formula $H(r_{a},r_{b})$
+\end_inset
+
+ where A = amino acid (20 possible values), S = secondary structure (helix,
+ 
+\begin_inset Formula $\beta$
+\end_inset
+
+--sheet or loop), and X = angle pair (bivariate von Mises distribution).
+ The rectangles represent discrete variables, and the circles represent
+ continuous variables..
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Our pairwise evolutionary model is an HMM (Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:hmm_diagram"
+
+\end_inset
+
+) designed to model local protein sequence and structure evolution along
+ a pair of aligned homologous proteins, 
+\begin_inset Formula $p_{a}$
+\end_inset
+
+ and 
+\begin_inset Formula $p_{b}$
+\end_inset
+
+ in two different species 
+\begin_inset Formula $a$
+\end_inset
+
+ and 
+\begin_inset Formula $b$
+\end_inset
+
+, respectively.
+ 
+\end_layout
+
+\begin_layout Standard
+An 
+\begin_inset Formula $i$
+\end_inset
+
+th observation pair, 
+\begin_inset Formula $O^{i}=(O_{a}^{i},$
+\end_inset
+
+
+\begin_inset Formula $O_{b}^{i}$
+\end_inset
+
+), is associated with every aligned site 
+\begin_inset Formula $i$
+\end_inset
+
+ in an alignment 
+\begin_inset Formula $M$
+\end_inset
+
+ of 
+\begin_inset Formula $p_{a}$
+\end_inset
+
+ and 
+\begin_inset Formula $p_{b}$
+\end_inset
+
+.
+ Where we take 
+\begin_inset Formula $i$
+\end_inset
+
+ to run from 1 to 
+\begin_inset Formula $m$
+\end_inset
+
+, where 
+\begin_inset Formula $m$
+\end_inset
+
+ is the length of the alignment 
+\begin_inset Formula $M$
+\end_inset
+
+.
+ Each observation, 
+\begin_inset Formula $O_{a}^{i}$
+\end_inset
+
+ and 
+\begin_inset Formula $O_{b}^{i}$
+\end_inset
+
+, contains amino acid sequence and structural information corresponding
+ to the two C
+\begin_inset Formula $\alpha$
+\end_inset
+
+ atoms at aligned site 
+\begin_inset Formula $i$
+\end_inset
+
+ associated with proteins 
+\begin_inset Formula $p_{a}$
+\end_inset
+
+ and 
+\begin_inset Formula $p_{b}$
+\end_inset
+
+, respectively.
+ An observation corresponding to a particular protein at aligned site 
+\begin_inset Formula $i$
+\end_inset
+
+, 
+\begin_inset Formula $O_{a}^{i}$
+\end_inset
+
+, is comprised of three different data types associated with the C
+\begin_inset Formula $\alpha$
+\end_inset
+
+ atom: an amino acid (
+\begin_inset Formula $A_{a}^{i}$
+\end_inset
+
+, discrete, one of twenty canonical amino acids), phi and psi dihedral angles
+ (
+\begin_inset Formula $X_{a}^{i}=\langle\phi_{a}^{i},\psi_{a}^{i}\rangle$
+\end_inset
+
+; continuous, bivariate), and it's secondary structure classifcation (
+\begin_inset Formula $S_{a}^{i}$
+\end_inset
+
+; discrete, one of three classes: helix, sheet or coil).
+ That is 
+\begin_inset Formula $O_{a}^{i}=(A_{a}^{i},X_{a}^{i},S_{a}^{i})$
+\end_inset
+
+ and 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $O_{b}^{i}=(A_{b}^{i},X_{b}^{i},S_{b}^{i})$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Each hidden node 
+\begin_inset Formula $H^{i}$
+\end_inset
+
+ in the HMM corresponds to an aligned site 
+\begin_inset Formula $i$
+\end_inset
+
+ in the alignment 
+\begin_inset Formula $M$
+\end_inset
+
+.
+ Initially we treat the alignment 
+\begin_inset Formula $M$
+\end_inset
+
+ as given apriori, but later on modify the HMM to allow an unknown alignment.
+\end_layout
+
+\begin_layout Standard
+The model is parametrised by 
+\begin_inset Formula $q$
+\end_inset
+
+ hidden states.
+ Every hidden node, 
+\begin_inset Formula $H^{i}$
+\end_inset
+
+, corresponding to an aligned site 
+\begin_inset Formula $i$
+\end_inset
+
+ takes an integer value from 
+\begin_inset Formula $1$
+\end_inset
+
+ to 
+\begin_inset Formula $q$
+\end_inset
+
+ for the hidden state at node 
+\begin_inset Formula $H^{i}$
+\end_inset
+
+.
+ Furthermore, every hidden state couples together an evolutionary regime
+ pair 
+\begin_inset Formula $(r_{a}^{i}$
+\end_inset
+
+,
+\begin_inset Formula $r_{b}^{i})$
+\end_inset
+
+, written as 
+\begin_inset Formula $H^{i}(r_{a}^{i},r_{b}^{i}).$
+\end_inset
+
+ Each evolutionary regime takes on integer values 1 or 2, i.e.
+ 
+\begin_inset Formula $(r_{a}^{i},r_{b}^{i})\in\{1,2\}^{2}$
+\end_inset
+
+.
+ Therefore, there are 
+\begin_inset Formula $4q$
+\end_inset
+
+ possible combinations of hidden state and evolutionary regime pairs at
+ every aligned site 
+\begin_inset Formula $i$
+\end_inset
+
+.
+ We will return the role of the evolutionary regime pairs later.
+ 
+\end_layout
+
+\begin_layout Standard
+From this point forward we may sometimes write 
+\begin_inset Formula $H^{i}(r_{a}^{i},r_{b}^{i})$
+\end_inset
+
+ as 
+\begin_inset Formula $H^{i}$
+\end_inset
+
+ when the meaning is clear.
+ We write 
+\begin_inset Formula $H=(H^{1},H^{2},\ldots,H^{m}$
+\end_inset
+
+), and assume that, conditional on 
+\begin_inset Formula $H^{i}(r_{a}^{i},r_{b}^{i})$
+\end_inset
+
+ and branch length 
+\begin_inset Formula $t_{ab}$
+\end_inset
+
+, the corresponding random variables 
+\begin_inset Formula $A^{i}$
+\end_inset
+
+, 
+\begin_inset Formula $X^{i}$
+\end_inset
+
+ and 
+\begin_inset Formula $S^{i}$
+\end_inset
+
+ are independent.
+ 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+\begin{array}{ccc}
+p(O^{i}|H^{i}(r_{a}^{i},r_{b}^{i}),t_{ab}) & = & \overset{\text{amino acid sequence evolution (CTMC)}}{\overbrace{p(A^{i}|H^{i}(r_{a}^{i},r_{b}^{i}),t_{ab})}}\\
+ & \times & \overset{\text{dihedral angle evolution (wNOU diffusion)}}{\overbrace{p(X^{i}|H^{i}(r_{a}^{i},r_{b}^{i}),t_{ab})}}\\
+ & \times & \overset{\text{secondary structure evolution (CTMC)}}{\overbrace{p(S^{i}|H^{i}(r_{a}^{i},r_{b}^{i}),t_{ab})}}
+\end{array}\label{eq:likelihood2}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Let us denote the transition probability of the 
+\begin_inset Formula $(i-1)$
+\end_inset
+
+th node to the 
+\begin_inset Formula $i$
+\end_inset
+
+th node by 
+\begin_inset Formula $P(H^{i}|H^{i-1})$
+\end_inset
+
+ and the initial probability at the 1st node by 
+\begin_inset Formula $p(H^{1})$
+\end_inset
+
+.
+ It can be seen that the joint distribution of 
+\begin_inset Formula $(O,H)$
+\end_inset
+
+ conditioned on the branch length 
+\begin_inset Formula $t_{ab}$
+\end_inset
+
+ seperating proteins 
+\begin_inset Formula $p_{a}$
+\end_inset
+
+ and 
+\begin_inset Formula $p_{b}$
+\end_inset
+
+ is given by:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+p(O,H|t_{ab})=p(H^{1})p(O^{1}|H^{1},t_{ab})\underset{i=2}{\overset{m}{\sum}}p(H^{i}|H^{i-1})p(O^{i}|H^{i},t_{ab})
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+p(O^{i}|H^{i},t_{ab})=\sum_{(r_{a}^{i},r_{b}^{i})\in\{1,2\}^{2}}p(O^{i}|H^{i}(r_{a}^{i},r_{b}^{i}),t_{ab})p(r_{a}^{i},r_{b}^{i}|H^{i},t_{ab})
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+and 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $p(r_{a}^{i},r_{b}^{i}|H^{i},t_{ab})$
+\end_inset
+
+ is the evolutionary regime pair probability.
+\end_layout
+
+\begin_layout Standard
+Hence
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+p(O|t_{ab})=\underset{H}{\sum}p(O,H|t_{ab})
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Where the sum is taken over all 
+\begin_inset Formula $H$
+\end_inset
+
+ which are combinations of m integers from 
+\begin_inset Formula $(1,2,\ldots,q)$
+\end_inset
+
+.
+ Thus we have as many as 
+\begin_inset Formula $q^{m}$
+\end_inset
+
+ terms in the last expression.
+\end_layout
+
+\begin_layout Standard
+We now turn to the meaning of the evolutionary regimes.
+ Two modes of evolution are modelled: 
+\begin_inset Quotes eld
+\end_inset
+
+Constant evolution
+\begin_inset Quotes erd
+\end_inset
+
+ and 
+\begin_inset Quotes eld
+\end_inset
+
+Jump evolution
+\begin_inset Quotes erd
+\end_inset
+
+.
+ Constant evolution occurs when the evolutionary regime starting in protein
+ 
+\begin_inset Formula $a$
+\end_inset
+
+ at aligne site 
+\begin_inset Formula $i$
+\end_inset
+
+, 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $r_{a}^{i}$
+\end_inset
+
+, is the same as the evolutionary regime
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ ending in protein 
+\begin_inset Formula $b$
+\end_inset
+
+ at aligned site 
+\begin_inset Formula $i$
+\end_inset
+
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+, 
+\begin_inset Formula $r_{b}^{i}$
+\end_inset
+
+, i.e.
+ 
+\begin_inset Formula $r_{a}^{i}=r_{b}^{i}$
+\end_inset
+
+.
+ Conversely, jump evolution occurs when the evolutionary regime starting
+ in protein 
+\begin_inset Formula $a$
+\end_inset
+
+, 
+\begin_inset Formula $r_{a}^{i}$
+\end_inset
+
+, differs from the evolutionary regime ending in protein 
+\begin_inset Formula $b$
+\end_inset
+
+, 
+\begin_inset Formula $r_{b}^{i}$
+\end_inset
+
+, at aligned site 
+\begin_inset Formula $i$
+\end_inset
+
+, i.e.
+ 
+\begin_inset Formula $r_{a}^{i}\neq r_{b}^{i}$
+\end_inset
+
+.
+ Constant evolution in our model, is intended to capture structural drift
+ (changes in diheral angles restricted to a region of the Ramachandran plot),
+ whereas jump evolution allows us to capture structural shift (large changes
+ in dihedral angles, possibly between distant regions of the Ramachandran
+ plot).
+\end_layout
+
+\begin_layout Standard
+The hidden state at node 
+\begin_inset Formula $H^{i}$
+\end_inset
+
+, together with the branch length, 
+\begin_inset Formula $t_{ab}$
+\end_inset
+
+, separating proteins 
+\begin_inset Formula $p_{a}$
+\end_inset
+
+ and 
+\begin_inset Formula $p_{b}$
+\end_inset
+
+ specifies a joint distribution over the evolutionary regime pair probability.
+ The evolutionary regime pair probabilities have been chose as follows:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+p(r_{a}^{i},r_{b}^{i}|H^{i},t_{ab})=\begin{cases}
+\pi(H^{i},r_{a}^{i})[e^{-\alpha(H^{i})t_{ab}}+\pi(H^{i},r_{a}^{i})(1-e^{-\alpha(H^{i})t_{ab}})] & \text{if }r_{a}^{i}=r_{b}^{i}\\
+ & \text{i.e. constant evolution}\\
+\pi(H^{i},r_{a}^{i})\pi(H^{i},r_{b}^{i})(1-e^{-\alpha(H^{i})t_{ab}}) & \text{if }r_{a}^{i}\neq r_{b}^{i}\\
+ & \text{i.e. jump evolution}
+\end{cases}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Where 
+\begin_inset Formula $\pi(H^{i},r_{a}^{i})$
+\end_inset
+
+ and 
+\begin_inset Formula $\pi(H^{i},r_{b}^{i})$
+\end_inset
+
+ are model parameters specifying the probability of starting in regime 
+\begin_inset Formula $r_{a}^{i}$
+\end_inset
+
+ or 
+\begin_inset Formula $r_{b}^{i}$
+\end_inset
+
+ conditional on the hidden state at node 
+\begin_inset Formula $H^{i}$
+\end_inset
+
+.
+ Similarly, 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\alpha(H^{i})$
+\end_inset
+
+ is a parameter of the model specifying the jump rate corresponding to the
+ hidden state at node 
+\begin_inset Formula $H^{i}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Note that the regime pair jump probabilities have been chosen such that
+ time reversilibilty holds, i.e.
+ 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $p(r_{a}^{i},r_{b}^{i}|H^{i},t_{ab})=p(r_{b}^{i},r_{a}^{i}|H^{i},t_{ab})$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Each regime pair, 
+\begin_inset Formula $(r_{a}^{i},r_{b}^{i})$
+\end_inset
+
+, and branch length 
+\begin_inset Formula $t_{ab}$
+\end_inset
+
+, specifies a joint distribution over observation pairs: 
+\begin_inset Formula $p(O_{a}^{i},O_{b}^{i}|r_{a}^{i},r_{b}^{i},t_{ab})$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+The joint likelihood of the observations 
+\begin_inset Formula $O_{a}^{i}$
+\end_inset
+
+ and 
+\begin_inset Formula $O_{b}^{i}$
+\end_inset
+
+ at position 
+\begin_inset Formula $i$
+\end_inset
+
+, conditional on regime pair, 
+\begin_inset Formula $(r_{a}^{i}$
+\end_inset
+
+,
+\begin_inset Formula $r_{b}^{i}$
+\end_inset
+
+) , and branch length 
+\begin_inset Formula $t_{ab}$
+\end_inset
+
+ seperating the two protein is:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+p(O_{a}^{i},O_{b}^{i}|H^{i}(r_{a}^{i},r_{b}^{i}),t_{ab})=\begin{cases}
+p(O_{a}^{i},O_{b}^{i}|H^{i},r_{\#}^{i},t_{ab}) & \text{if }r_{a}^{i}=r_{b}^{i}\text{, where }r_{\#}^{i}=r_{a}^{i}=r_{b}^{i}\\
+ & \text{Constant evolution, likelihood given by the}\\
+ & \text{evolutionary model specified by evolutionary regime \ensuremath{r_{\#}^{i}}.}\\
+p(O_{a}^{i}|H^{i},r_{a}^{i})p(O_{b}^{i}|H^{i},r_{b}^{i}) & \text{if }r_{a}^{i}\neq r_{b}^{i}\text{ }\\
+ & \text{Jump evolution, likelihood given by the stationary}\\
+ & \text{distributions of regimes }r_{a}^{i}\text{ and }r_{b}^{i}\text{, respectively.}
+\end{cases}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In the case of constant evolution, evolution at aligned 
+\begin_inset Formula $i$
+\end_inset
+
+ is described in terms of the same evolutionary regime 
+\begin_inset Formula $r_{\#}^{i}=r_{a}^{i}=r_{b}^{i}$
+\end_inset
+
+ and is therefore considered 
+\begin_inset Quotes eld
+\end_inset
+
+constant
+\begin_inset Quotes erd
+\end_inset
+
+.
+ In the case of jump evolution, the observations 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $O_{a}^{i}$
+\end_inset
+
+ and 
+\begin_inset Formula $O_{b}^{i}$
+\end_inset
+
+ are assumed to be drawn from the stationary distributions corresponding
+ to evolutionary regimes 
+\begin_inset Formula $r_{a}^{i}$
+\end_inset
+
+ and 
+\begin_inset Formula $r_{b}^{i}$
+\end_inset
+
+, respectively.
+ The assumption that they are drawn from the stationary distribution conditioned
+ on the occurence of a jump allows us to ignore the branch length 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+
+\begin_inset Formula $t_{ab}$
+\end_inset
+
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+.
+ Furthermore, it is no longer necessary to consider the unobserved evolutionary
+ trajectory linking the two observations and hence there is no need to marginali
+se over all possible trajectories, as in a model with continuous Markovian
+ switching between evolution regimes.
+ This allows us to model structural drift in a computationally tractable
+ manner.
+ Our jump model can be justified by noting that in the case where 
+\begin_inset Formula $t_{ab}\to\infty$
+\end_inset
+
+, 
+\begin_inset Formula $O_{a}^{i}$
+\end_inset
+
+ and 
+\begin_inset Formula $O_{b}^{i}$
+\end_inset
+
+, are conditionally independent, the evolutionary regimes and the behaviour
+ of the model tends to that of a non-evolutionary TorusDBN model on each
+ protein.
+\end_layout
+
+\begin_layout Standard
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+Some might consider 
+\begin_inset Quotes eld
+\end_inset
+
+jump evolution
+\begin_inset Quotes erd
+\end_inset
+
+ to be fully non-evolutionary given that the observations are drawn from
+ the stationary distributions of the respective evolutionary regimes, however,
+ the probability of a jump is informed by evolutionary information such
+ as the branch 
+\begin_inset Formula $t_{ab}$
+\end_inset
+
+ and any observations, such as the amino acids corresponding to each of
+ the two proteins.
+\end_layout
+
+\begin_layout Paragraph*
+Time reversibility
+\end_layout
+
+\begin_layout Standard
+The three stochastic processes in Equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:likelihood2"
+
+\end_inset
+
+ are assumed to be time-reversible.
+ This, together with assumption of time-reversibility in jumping between
+ evolutionary regimes, ensures overall time-reversibility in Equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:joint_likelihood"
+
+\end_inset
+
+.
+ This allows to treat the phylogenetic tree relating proteins 
+\begin_inset Formula $p_{a}$
+\end_inset
+
+and 
+\begin_inset Formula $p_{b}$
+\end_inset
+
+ as unrooted, implying we can arbitarily pick 
+\begin_inset Formula $p_{a}$
+\end_inset
+
+ or 
+\begin_inset Formula $p_{b}$
+\end_inset
+
+ as a root of the phylogenetic tree (CITE).
+ This avoids the need to marginalise over the common ancestor protein of
+ proteins 
+\begin_inset Formula $p_{a}$
+\end_inset
+
+ and 
+\begin_inset Formula $p_{b}$
+\end_inset
+
+ and branch times.
+ Note that whilst time-reversibility of the evolutionary processes at each
+ site holds, this is different from time-reversibility of the HMM.
+ The HMM is specified by a non-reversible transition probability matrix,
+ implying different probabilities going in opposite directions along a pair
+ of proteins (N to C terminus vs.
+ C to N terminus).
+\end_layout
+
+\begin_layout Subsubsection
+Stochastic processes
+\end_layout
+
+\begin_layout Standard
+Each evolutionary regime couples together three time-reversible stochastic
+ processes that each seperately describe the evolution of the three pairs
+ of observation types, as in Equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:likelihood2"
+
+\end_inset
+
+.
+ Because each evolutionary regime is intended to capture different features
+ of sequence and structural evolution, a different set of parameters is
+ used to describe each.
+ Parameters that correspond to a particular evolutionary regime are termed
+ 'regime-specific', whereas parameters that are shared across all evolutionary
+ regimes are termed 'global'.
+\end_layout
+
+\begin_layout Paragraph
+Amino acid evolution
+\end_layout
+
+\begin_layout Standard
+Amino acid evolution is described by a Continous-Time Markov Chains (CTMC),
+ which is the standard approach for modelling amino acid substitution processes.
+\end_layout
+
+\begin_layout Standard
+Amino acid evolution in our model is parameterised in the following way:
+ the exchangeability of amino acids is described by a 
+\begin_inset Formula $20\times20$
+\end_inset
+
+ symmetric global exchangeability matrix 
+\begin_inset Formula $S$
+\end_inset
+
+ (190 free parameters; Whelan and Goldman (2001)), a regime-specific set
+ of 20 amino acid equilibrium frequencies 
+\begin_inset Formula $\Pi_{r}^{h}=\text{diag}\{\pi_{1},\pi_{2},\ldots,\pi_{20}\}$
+\end_inset
+
+ (19 free parameters per evolutionary regime), and a regime-specific scaling
+ factor 
+\begin_inset Formula $\Lambda_{r}^{h}$
+\end_inset
+
+ (1 free parameter per evolutionary regime).
+ Together these define a regime-specific amino acid rate matrix 
+\begin_inset Formula $Q_{r}^{h}=\Lambda_{r}^{h}S\Pi_{r}^{h}$
+\end_inset
+
+.
+ 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+Due to the symmetry of 
+\begin_inset Formula $S$
+\end_inset
+
+, 
+\begin_inset Formula $Q_{r}^{h}$
+\end_inset
+
+ is guaruanteed to have a stationary distribution corresponding to the set
+ of 20 amino acid equilibirum frequencies: 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+
+\begin_inset Formula $\Pi_{r}^{h}$
+\end_inset
+
+ .
+\end_layout
+
+\begin_layout Paragraph
+Secondary structure evolution
+\end_layout
+
+\begin_layout Standard
+Secondary structure evolution is likewise described by a CTMC.
+ In our model we use three classes to describe secondary structure class
+ at each position: helix (H), sheet (S) and random coil (C).
+ 
+\end_layout
+
+\begin_layout Standard
+The exhangeability of secondary structure classes at a position is described
+ by a 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $3\times3$
+\end_inset
+
+ 
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+symmetric global exchangeability matrix 
+\begin_inset Formula $V$
+\end_inset
+
+ and a regime-specific set of 3 secondary structure equlibrium frequencies
+ 
+\begin_inset Formula $\Xi_{r}^{h}=\text{diag}\{\pi_{1},\pi_{2},\pi_{3}\}$
+\end_inset
+
+.
+ Together these define a regime-specific secondary structure rate matrix
+ 
+\begin_inset Formula $R_{r}^{h}=V\Xi_{r}^{h}$
+\end_inset
+
+, with stationary distribution: 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\Xi_{r}^{h}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Paragraph
+Dihedral angle evolution
+\end_layout
+
+\begin_layout Standard
+We use the biviriate Wrapped Normal Torus OU diffusion of Eduardo 2016,
+ which has the form:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+d\Theta_{t}=\underset{k\in\mathbb{Z}^{2}}{\sum}A(\mu-2\pi k)w_{k}(\Theta_{t})+\Sigma^{\frac{1}{2}}dW_{t}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Where 
+\begin_inset Formula $W_{t}$
+\end_inset
+
+ is the Wiener process and
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+w_{k}(x)=\frac{\phi_{\frac{1}{2}A^{-1}\Sigma}(x-\mu+2m\pi)}{\underset{k\in\mathbb{Z}^{2}}{\sum}\phi_{\frac{1}{2}A^{-1}\Sigma}(x-\mu+2k\pi)}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Accounting for alignment uncertainty
+\end_layout
+
+\begin_layout Standard
+Protein sequences can not only undergo point mutation events, but also also
+ insertion and deletion events.
+ We describe a modified pairwise TKF92 alignment HMM that models both local
+ sequence/structure evolution and sequence alignment.
+ Whilst, it is possible to fix the alignment in advance by pre-aligning
+ the sequences using one of the many available optimisation-based alignment
+ methods (CITE CITE), doing so ignores alignment uncertainty.
+ An alignment can be thought of as a statement about homology, such that
+ when amino acid positions are aligned in order to indicate homology they
+ are considered to have evolved solely via mutation along the evolutionary
+ trajectory linking them and not via insertion or deletion.
+ As the sequence of insertion and deletions is rarely observed in practice,
+ it is difficult to make statements about the true underlying alignment
+ (homology relationships), especially when the sequences being compared
+ are distantly related and/or the rate of evolution is high.
+ The TKF92 model [CITE CITE] suitably provides a stochastic process describing
+ the evolution of insertions and deletions.
+ [DESCRIBE PROCESS IN MORE DETAIL]
+\end_layout
+
+\begin_layout Standard
+For the pairwise case, the TKF92 model can be represented as an HMM - we
+ use the TKF92 HMM described in [CITE] with the modification that each emitted
+ pair of characters is drawn from one of 
+\begin_inset Formula $H$
+\end_inset
+
+ evolutionary hidden states (Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:alignmenthmm"
+
+\end_inset
+
+).
+ This HMM formulation allows one to integrate over all possible pairwise
+ alignments in 
+\begin_inset Formula $\mathcal{O}(nm)$
+\end_inset
+
+ time, where 
+\begin_inset Formula $n$
+\end_inset
+
+ and 
+\begin_inset Formula $m$
+\end_inset
+
+ are the respective lengths of the two sequences.
+ The introduction of evolutionary hidden states increases this complexity
+ to 
+\begin_inset Formula $\mathcal{O}(nmH)$
+\end_inset
+
+, where 
+\begin_inset Formula $H$
+\end_inset
+
+ is the number of evolutionary hidden states.
+ The probability of transitioning from one evolutionary hidden state from
+ one alignment position to the next is given by the probability transition
+ matrix 
+\begin_inset Formula $p(h^{i},h^{i+1})$
+\end_inset
+
+, which is intended to encode the local sequence/structure evolution as
+ in the TorusDBN model.
+\end_layout
+
+\begin_layout Standard
+The likelihood of a sequence pair is given by:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+p(O|t_{ab},\Theta,\Omega)=\underset{A,H}{\sum}p(O|A,H,t_{ab},\Theta)p(A,H|t_{ab},\Omega)\label{eq:pair_likelihood}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Where 
+\begin_inset Formula $\Omega$
+\end_inset
+
+ is the alignment and hidden state transition parameters, 
+\begin_inset Formula $t_{ab}$
+\end_inset
+
+ is the time separating the two sequences 
+\begin_inset Formula $a$
+\end_inset
+
+ and 
+\begin_inset Formula $b$
+\end_inset
+
+, and 
+\begin_inset Formula $\Theta$
+\end_inset
+
+ corresponds to the evolutionary parameters.
+ The sum over alignments and hidden states (
+\begin_inset Formula $\underset{A,H}{\sum}$
+\end_inset
+
+) can be computed using the forward algorithm.
+ 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+The likelihood given by 
+\begin_inset Formula $p(O|A,H,t_{ab},\Theta)$
+\end_inset
+
+ in Equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:pair_likelihood"
+
+\end_inset
+
+ can be decomposed into a product of alignment site likelihoods when conditionin
+g on a particular alignment and set of hidden states:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+p(O|A,H,t_{ab},\Theta)=\underset{i\in A,H}{\prod}p(O_{a}^{i},O_{b}^{i}|H^{i},t_{ab},\Theta)
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+p(O_{a}^{i},O_{b}^{i}|h^{i},t_{ab})=\begin{cases}
+p(O_{a}^{i},O_{b}^{i}|H^{i},t_{ab}) & \text{ are matched are homologous (homologous)}\\
+p(O_{a}^{i}|H^{i}) & \text{if the observation in sequence \ensuremath{a}is the result of an indel. }\\
+p(O_{b}^{i}|H^{i}) & \text{if the observation in sequence \ensuremath{b}is the result of an indel. }
+\end{cases}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Note that in the case of insertion or deletion the probability of observing
+ a single observation is no longer dependent on the time parameter as it
+ is assumed that the observations are drawn from the stationary distribution.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename alignmenthmm7.svg
+	width 95col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Caption
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:alignmenthmm"
+
+\end_inset
+
+Diagrammatic representation of TKF92 alignment HMM modified to incorporate
+ evolutionary hidden states and corresponding transitions.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Data selection
+\end_layout
+
+\begin_layout Subsection
+Model training
+\end_layout
+
+\begin_layout Subsubsection
+E-step
+\end_layout
+
+\begin_layout Subsubsection
+Sequence-specific parameters
+\end_layout
+
+\begin_layout Paragraph
+Priors
+\end_layout
+
+\begin_layout Paragraph
+Marginalisation using MCMC
+\end_layout
+
+\begin_layout Subsubsection
+M-step
+\end_layout
+
+\begin_layout Subsubsection
+Paralleisation
+\end_layout
+
+\begin_layout Subsection
+Posterior inference
+\end_layout
+
+\begin_layout Subsection
+Benchmarks
+\end_layout
+
+\begin_layout Subsubsection
+Angular distance
+\end_layout
+
+\begin_layout Standard
+Distances between angle pairs, 
+\begin_inset Formula $\langle\phi_{a},\psi_{a}\rangle$
+\end_inset
+
+ and 
+\begin_inset Formula $\langle\phi_{b},\psi_{b}\rangle$
+\end_inset
+
+, are calculated using the cosine distance (CITE MARDIA, DOWNS?? 2002):
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+d(\langle\phi_{a},\psi_{a}\rangle,\langle\phi_{b},\psi_{b}\rangle)=\sqrt{4-2\cos(\phi_{a}-\phi_{b})-2\cos(\psi_{a}-\psi_{b})}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This can be justfied by noting that when 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\phi_{a}-\phi_{b}\approx0$
+\end_inset
+
+ and 
+\begin_inset Formula $\psi_{a}-\psi_{b}\approx0$
+\end_inset
+
+ are small, this distance may be approximated by the Euclidean distance.
+ Using the small angle approximation for cosine (
+\begin_inset Formula $\cos\theta\approx1-\frac{\theta^{2}}{2}$
+\end_inset
+
+ when 
+\begin_inset Formula $\theta$
+\end_inset
+
+ is near zero):
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\begin{array}{ccc}
+d(\langle\phi_{a},\psi_{a}\rangle,\langle\phi_{b},\psi_{b}\rangle) & \approx & \sqrt{4-2(1-\frac{(\phi_{a}-\phi_{b})^{2}}{2})-2(1-\frac{(\psi_{a}-\psi_{b})^{2}}{2})}\\
+ & = & \sqrt{(\phi_{a}-\phi_{b})^{2}-(\psi_{a}-\psi_{b})^{2}}
+\end{array}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Results
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename angleplots_AllAminoAcids.png
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename angleplots_Gly.png
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename angleplots_Pro.png
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Discussion
+\end_layout
+
+\begin_layout Standard
+For reasons of tractability we have chosen a similar HMM framework for our
+ pairwise evolutionary model, although more general frameworks such as Factorial
+ HMMs, that allow additional hidden layers, or Continous Time Bayesian Networks,
+ that allow hidden states that evolve between protein as well as capturing
+ dependencies along the proteins, could also be considered.
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset bibtex
+LatexCommand bibtex
+bibfiles "refs"
+options "plain"
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document
