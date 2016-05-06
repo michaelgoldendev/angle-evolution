@@ -1,3 +1,12 @@
 models/
 logs/
 mcmcoutput/
+
+# Omit binaries from Edu’s suff
+src/*.o *so
+
+# Omit all files without extension
+*
+!/**/
+!*.*
+.DS_Store
