@@ -1417,7 +1417,7 @@ toroidal diffusion
 \emph default
  
 \backslash
-citep{Garcia-Portugues2016} with the required properties of time-reversibility,
+citep{Garcia-Portuges2016} with the required properties of time-reversibility,
  ergodicity, parsimonity and tractability presents several a non-trivial
  challenges.
  The last point is specially challenging since the maximum likelihood estimation
@@ -1617,9 +1617,9 @@ eqref{eq:wnd}.
 
 \begin_layout Standard
 \begin_inset Formula 
-\begin{equation}
-\tilde{p_{t}}(\theta\,|\,\theta_{0};A,\mu,\Sigma)=\sum_{m\in\mathbb{Z}^{2}}f_{\mathrm{WN}}(\theta;\mu_{t}^{m},\Gamma_{t})w_{m}(\theta_{0}),\label{eq:ap}
-\end{equation}
+\[
+\tilde{p_{t}}(\theta\,|\,\theta_{0};A,\mu,\Sigma)=\sum_{m\in\mathbb{Z}^{2}}f_{\mathrm{WN}}(\theta;\mu_{t}^{m},\Gamma_{t})w_{m}(\theta_{0}),
+\]
 
 \end_inset
 
@@ -1686,16 +1686,12 @@ ii)
 iii)
 \emph default
 , a further key advantage of 
-\begin_inset Formula $\eqref{eq:ap}$
-\end_inset
-
- over pseudo-likelihoods is that is able to capture the multimodality of
- the tpd and has the correct stationary distribution.
+\backslash
+eqref{eq:ap} over pseudo-likelihoods is that is able to capture the multimodalit
+y of the tpd and has the correct stationary distribution.
  In addition, as the true tpd, 
-\begin_inset Formula $\eqref{eq:ap}$
-\end_inset
-
- satisfies the time-reversibility equation, namely 
+\backslash
+eqref{eq:ap} satisfies the time-reversibility equation, namely 
 \begin_inset Formula $\tilde{p}_{t}(\theta_{2}\,|\,\theta_{1};A,\mu,\Sigma)f_{\mathrm{WN}}(\theta_{1};\mu,\tfrac{1}{2}A^{-1}\Sigma)=\tilde{p}_{t}(\theta_{1}\,|\,\theta_{2};A,\mu,\Sigma)f_{\mathrm{WN}}(\theta_{2};\mu,\tfrac{1}{2}A^{-1}\Sigma)$
 \end_inset
 
@@ -1855,7 +1851,7 @@ with
 \begin_inset Formula $i(t)=-\tfrac{1}{2}b(-2t)$
 \end_inset
 
-.
+,.
  This gives
 \family default
 \series default
@@ -1871,7 +1867,7 @@ with
  a neat linear combination of the stationary and infinitesimal covariance
  matrices, particularly convenient for evaluating the approximating tpd
  at different times as many computations can be reused.
- The maximum likelihood estimates from a sample 
+ The maximum likelihood estimates from the sample 
 \begin_inset Formula $\{(\phi_{1},\psi_{1},\phi_{2},\psi_{2},t)_{i}\}_{i=1}^{n}$
 \end_inset
 
@@ -1891,7 +1887,6 @@ with
 
 \begin_layout Standard
 and can be obtained by CITE NLOPT METHOD USED.
- COMPLETE MORE THIS PART.
 \end_layout
 
 \begin_layout Subsection

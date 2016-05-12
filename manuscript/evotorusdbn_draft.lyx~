@@ -1,5 +1,5 @@
-#LyX 2.0 created this file. For more info see http://www.lyx.org/
-\lyxformat 413
+#LyX 2.1 created this file. For more info see http://www.lyx.org/
+\lyxformat 474
 \begin_document
 \begin_header
 \textclass article
@@ -12,13 +12,13 @@
 \font_roman default
 \font_sans default
 \font_typewriter default
+\font_math auto
 \font_default_family default
 \use_non_tex_fonts false
 \font_sc false
 \font_osf false
 \font_sf_scale 100
 \font_tt_scale 100
-
 \graphics default
 \default_output_format default
 \output_sync 0
@@ -29,15 +29,24 @@
 \use_hyperref false
 \papersize default
 \use_geometry false
-\use_amsmath 1
-\use_esint 1
-\use_mhchem 1
-\use_mathdots 1
-\cite_engine natbib_authoryear
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine natbib
+\cite_engine_type authoryear
+\biblio_style plainnat
 \use_bibtopic false
 \use_indices false
 \paperorientation portrait
 \suppress_date false
+\justification true
 \use_refstyle 1
 \index Index
 \shortcut idx
@@ -80,7 +89,7 @@ We give a generative evolutionary model of protein sequence and structural
  This model is comparatively more realistic than previous stochastic models,
  since it allows improved understanding of the relationship between sequence
  and structure evolution.
- The generative nature of our model allows us to provide evidence of it's
+ The generative nature of our model allows us to provide evidence of its
  validity.
 \end_layout
 
@@ -201,7 +210,7 @@ status open
 \end_layout
 
 \begin_layout Plain Layout
-\begin_inset Caption
+\begin_inset Caption Standard
 
 \begin_layout Plain Layout
 \begin_inset CommandInset label
@@ -291,6 +300,7 @@ status open
 \begin_layout Plain Layout
 \begin_inset Graphics
 	filename kanti_model2.svg
+	width 100col%
 
 \end_inset
 
@@ -298,7 +308,7 @@ status open
 \end_layout
 
 \begin_layout Plain Layout
-\begin_inset Caption
+\begin_inset Caption Standard
 
 \begin_layout Plain Layout
 \begin_inset CommandInset label
@@ -761,7 +771,7 @@ Jump evolution
 \begin_inset Formula $a$
 \end_inset
 
- at aligne site 
+ at aligned site 
 \begin_inset Formula $i$
 \end_inset
 
@@ -851,10 +861,10 @@ Jump evolution
 
 .
  Constant evolution in our model, is intended to capture structural drift
- (changes in diheral angles restricted to a region of the Ramachandran plot),
- whereas jump evolution allows us to capture structural shift (large changes
- in dihedral angles, possibly between distant regions of the Ramachandran
- plot).
+ (changes in dihedral angles restricted to a region of the Ramachandran
+ plot), whereas jump evolution allows us to capture structural shift (large
+ changes in dihedral angles, possibly between distant regions of the Ramachandra
+n plot).
 \end_layout
 
 \begin_layout Standard
@@ -942,7 +952,7 @@ Where
 
 \begin_layout Standard
 Note that the regime pair jump probabilities have been chosen such that
- time reversilibilty holds, i.e.
+ time reversibility holds, i.e.
  
 \family roman
 \series medium
@@ -1004,7 +1014,7 @@ The joint likelihood of the observations
 \begin_inset Formula $t_{ab}$
 \end_inset
 
- seperating the two protein is:
+ separating the two protein is:
 \end_layout
 
 \begin_layout Standard
@@ -1074,7 +1084,7 @@ constant
 
 , respectively.
  The assumption that they are drawn from the stationary distribution conditioned
- on the occurence of a jump allows us to ignore the branch length 
+ on the occurrence of a jump allows us to ignore the branch length 
 \family default
 \series default
 \shape default
@@ -1188,7 +1198,7 @@ and
 \begin_inset Formula $p_{b}$
 \end_inset
 
- as unrooted, implying we can arbitarily pick 
+ as unrooted, implying we can arbitrarily pick 
 \begin_inset Formula $p_{a}$
 \end_inset
 
@@ -1220,9 +1230,9 @@ Stochastic processes
 \end_layout
 
 \begin_layout Standard
-Each evolutionary regime couples together three time-reversible stochastic
- processes that each seperately describe the evolution of the three pairs
- of observation types, as in Equation 
+Each evolutionary regime couples together three time-reversible Markovian
+ stochastic processes that each separately describe the evolution of the
+ three pairs of observation types, as in Equation 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "eq:likelihood2"
@@ -1248,7 +1258,7 @@ Amino acid evolution is described by a Continous-Time Markov Chains (CTMC),
 \end_layout
 
 \begin_layout Standard
-Amino acid evolution in our model is parameterised in the following way:
+Amino acid evolution in our model is parameterized in the following way:
  the exchangeability of amino acids is described by a 
 \begin_inset Formula $20\times20$
 \end_inset
@@ -1293,8 +1303,8 @@ Due to the symmetry of
 \begin_inset Formula $Q_{r}^{h}$
 \end_inset
 
- is guaruanteed to have a stationary distribution corresponding to the set
- of 20 amino acid equilibirum frequencies: 
+ is guaranteed to have a stationary distribution corresponding to the set
+ of 20 amino acid equilibrium frequencies: 
 \family default
 \series default
 \shape default
@@ -1325,7 +1335,7 @@ Secondary structure evolution is likewise described by a CTMC.
 \end_layout
 
 \begin_layout Standard
-The exhangeability of secondary structure classes at a position is described
+The exchangeability of secondary structure classes at a position is described
  by a 
 \family roman
 \series medium
@@ -1358,7 +1368,7 @@ symmetric global exchangeability matrix
 \begin_inset Formula $V$
 \end_inset
 
- and a regime-specific set of 3 secondary structure equlibrium frequencies
+ and a regime-specific set of 3 secondary structure equilibrium frequencies
  
 \begin_inset Formula $\Xi_{r}^{h}=\text{diag}\{\pi_{1},\pi_{2},\pi_{3}\}$
 \end_inset
@@ -1393,14 +1403,60 @@ Dihedral angle evolution
 \end_layout
 
 \begin_layout Standard
-We use the biviriate Wrapped Normal Torus OU diffusion of Eduardo 2016,
- which has the form:
+Unlike the previous stochastic processes and in order to account or full-atomic
+ detail, the evolution of dihedrals is modelled by a continuous-time and
+ 
+\emph on
+continuous-state
+\emph default
+ Markovian process, i.e.
+ a diffusion.
+ Constructing a 
+\emph on
+toroidal diffusion
+\emph default
+ 
+\backslash
+citep{Garcia-Portugues2016} with the required properties of time-reversibility,
+ ergodicity, parsimonity and tractability presents several a non-trivial
+ challenges.
+ The last point is specially challenging since the maximum likelihood estimation
+ depends on the transition probability density (tpd), which almost always
+ has an intractable analytical form and is only known implicitly as the
+ solution to the Fokker-Planck equation.
+ This is particullarly true when the drift and diffusion coefficients are
+ periodic - hence highly non-linear - as it happens with toroidal diffusions.
+ Albeit the unavailability of the tpd can be bypassed by different approaches
+ (pseudo-likelihoods, numerical solution of the Fokker-Planck equation,
+ etc), these methods either make severe compromises in the accuracy of the
+ approximation to the tpd (mainly aimed for 
+\begin_inset Formula $t\to0$
+\end_inset
+
+) or in its computational expediency (particularly on multivariate diffusions).
+ Both problems result in a major drag down for the traaining and performance
+ of the model, specially for a large dataset.
+\end_layout
+
+\begin_layout Standard
+A suitable diffusion satisfying the above conditions was specifically developed
+ for this purpose in 
+\backslash
+cite{Garcia-Portugues2016}, where a toroidal analogue of the celebrated
+ Ornstein-Uhlenbeck (OU) process was considered.
+ The diffusion is driven by the (bivariate) Wrapped Normal (WN) 
+\backslash
+citep{Mardia2000} distribution, denoted by 
+\begin_inset Formula $\mathrm{WN}(\mu,\Sigma)$
+\end_inset
+
+ and having pdf
 \end_layout
 
 \begin_layout Standard
 \begin_inset Formula 
 \[
-d\Theta_{t}=\underset{k\in\mathbb{Z}^{2}}{\sum}A(\mu-2\pi k)w_{k}(\Theta_{t})+\Sigma^{\frac{1}{2}}dW_{t}
+f_{\mathrm{WN}}(\theta;\mu,\Sigma)=\sum_{k\in\mathbb{Z}^{2}}\phi_{\Sigma}(\theta-\mu+2k\pi),\quad\theta\in\mathbb{T}^{2},
 \]
 
 \end_inset
@@ -1409,22 +1465,433 @@ d\Theta_{t}=\underset{k\in\mathbb{Z}^{2}}{\sum}A(\mu-2\pi k)w_{k}(\Theta_{t})+\S
 \end_layout
 
 \begin_layout Standard
-Where 
+with 
+\begin_inset Formula $\phi_{\Sigma}$
+\end_inset
+
+ standing for the pdf of a bivariate Gaussian with zero mean and covariance
+ 
+\begin_inset Formula $\Sigma$
+\end_inset
+
+.
+ Jointly with the bivariate von Mises (see Chapter 6 in 
+\backslash
+cite{Hamelryck2012} for a review on bivariate von Mises models), the WN
+ can be considered as a toroidal analogue of the Gaussian distribution.
+ The WN toroidal diffusion 
+\begin_inset Formula $\{\Theta_{t}\}\subset\mathbb{T}^{2}$
+\end_inset
+
+ arises as the wrapping 
+\begin_inset Formula $\Theta_{t}=(X_{t}+\pi)\mod2\pi-\pi$
+\end_inset
+
+ of the Euclidean diffusion
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+dX_{t}=\underset{k\in\mathbb{Z}^{2}}{\sum}A(\mu-X_{t}-2k\pi)w_{k}(X_{t})dt+\Sigma^{\frac{1}{2}}dW_{t}\label{eq:wnd}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
 \begin_inset Formula $W_{t}$
 \end_inset
 
- is the Wiener process and
+ is the Wiener process, 
+\begin_inset Formula $A$
+\end_inset
+
+ is the drift matrix, 
+\begin_inset Formula $\mu\in\mathbb{T}^{2}$
+\end_inset
+
+ is the stationary mean, 
+\begin_inset Formula $\Sigma$
+\end_inset
+
+ is the diffusion matrix and
 \end_layout
 
 \begin_layout Standard
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
 \begin_inset Formula 
 \[
-w_{k}(x)=\frac{\phi_{\frac{1}{2}A^{-1}\Sigma}(x-\mu+2m\pi)}{\underset{k\in\mathbb{Z}^{2}}{\sum}\phi_{\frac{1}{2}A^{-1}\Sigma}(x-\mu+2k\pi)}
+w_{k}(x)=\frac{\phi_{\frac{1}{2}A^{-1}\Sigma}(x-\mu+2m\pi)}{\underset{k\in\mathbb{Z}^{2}}{\sum}\phi_{\frac{1}{2}A^{-1}\Sigma}(x-\mu+2k\pi)},\quad k\in\mathbb{Z}^{2},
 \]
 
 \end_inset
 
 
+\end_layout
+
+\begin_layout Standard
+represents the distribution over the winding numbers of 
+\begin_inset Formula $\{X_{t}\}$
+\end_inset
+
+.
+ Intuitively, the drift of 
+\begin_inset Formula $\eqref{eq:wnd}$
+\end_inset
+
+ can be regarded as a smoothed weighting of piecewise linear drifts that
+ are binded to achieve periodicity.
+ The WN process is the 
+\emph on
+characteristic diffusion
+\emph default
+, in the sense of 
+\backslash
+cite{Kent1978}, of the WN, likewise the OU process is the characteristic
+ diffusion of the Gaussian distribution.
+ It is ergodic in 
+\begin_inset Formula $\mathbb{T}^{2}$
+\end_inset
+
+ with stationary distribution 
+\begin_inset Formula $\mathrm{WN}\big(\mu,\tfrac{1}{2}A^{-1}\Sigma\big)$
+\end_inset
+
+ and is time-reversible.
+ Indeed, it is the 
+\emph on
+unique 
+\emph default
+diffusion satisfying both properties.
+ Other toroidal diffusions with given stationary distributions can be constructe
+d following a similar argument, we refer to 
+\backslash
+cite{Garcia-Portugues2016} for further considerations.
+\end_layout
+
+\begin_layout Standard
+No analytical solution for the tpd of the WN diffusion is known.
+ However, the peculiar form of the drift of 
+\begin_inset Formula $\eqref{eq:wnd}$
+\end_inset
+
+ allows to make a connection with the (bivariate) OU process
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+dX_{t}=A(\mu-X_{t})dt+\Sigma^{\frac{1}{2}}dW_{t}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+which is analytically tractable.
+ We can conjecture that an approximation to the tpd follows from weighting
+ the exact tpd of 
+\backslash
+eqref{eq:ou} in the same fashion as the linear drifts are weighted in 
+\backslash
+eqref{eq:wnd}.
+ If we wrap this the resulting density, we get
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+\tilde{p_{t}}(\theta\,|\,\theta_{0};A,\mu,\Sigma)=\sum_{m\in\mathbb{Z}^{2}}f_{\mathrm{WN}}(\theta;\mu_{t}^{m},\Gamma_{t})w_{m}(\theta_{0}),\label{eq:ap}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+with
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\mu^{\bm{_{t}}}=\mu+e^{-tA}(\theta_{0}-\mu+2\pi k),\quad\Gamma_{t}=\int_{0}^{t}e^{-sA}\Sigma e^{-sA^{T}}\,ds.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The density 
+\backslash
+eqref{eq:ap} is indeed the conditional density of 
+\begin_inset Formula $(X_{t}+\pi)\mod2\pi-\pi$
+\end_inset
+
+ and, albeit is not the true tpd, it provides a good approximation to it
+ in key circunstances: 
+\emph on
+i)
+\emph default
+ 
+\begin_inset Formula $t\to0$
+\end_inset
+
+, since it collapses in the Dirac's delta; 
+\emph on
+ii)
+\emph default
+ 
+\begin_inset Formula $t\to\infty$
+\end_inset
+
+, since it converges to the stationary distribution; 
+\emph on
+iii)
+\emph default
+ high concentration, since the WN diffussion becomes a OU process after
+ a suitable centering.
+ CHECK[Point
+\emph on
+ ii)
+\emph default
+ is specially relevant in our context as it implies that the tpd is going
+ to be correctly approximated when there is littledependence/no changes].
+ Besides 
+\emph on
+ii)
+\emph default
+ and 
+\emph on
+iii)
+\emph default
+, a further key advantage of 
+\begin_inset Formula $\eqref{eq:ap}$
+\end_inset
+
+ over pseudo-likelihoods is that is able to capture the multimodality of
+ the tpd and has the correct stationary distribution.
+ In addition, as the true tpd, 
+\begin_inset Formula $\eqref{eq:ap}$
+\end_inset
+
+ satisfies the time-reversibility equation, namely 
+\begin_inset Formula $\tilde{p}_{t}(\theta_{2}\,|\,\theta_{1};A,\mu,\Sigma)f_{\mathrm{WN}}(\theta_{1};\mu,\tfrac{1}{2}A^{-1}\Sigma)=\tilde{p}_{t}(\theta_{1}\,|\,\theta_{2};A,\mu,\Sigma)f_{\mathrm{WN}}(\theta_{2};\mu,\tfrac{1}{2}A^{-1}\Sigma)$
+\end_inset
+
+.
+ The approximation is shown to have lower Kullback-Leibler divergences with
+ respect to the true tpd than toroidal pseudo-likelihoods, for most of the
+ usual scenarios and discretization times in the diffusion trajectory 
+\backslash
+citep{Garcia-Portugues2016}.
+\end_layout
+
+\begin_layout Standard
+The drift and diffusion matrices need to satisfy that 
+\begin_inset Formula $A^{-1}\Sigma$
+\end_inset
+
+ is a covariance matrix in order to have a non-degenerate stationary WN.
+ Different parametrizations are possible and we opted for a compromise between
+ flexibility and simplicity: 
+\begin_inset Formula $\Sigma=\mathrm{diag}(\sigma_{1}^{2},\sigma_{2}^{2})$
+\end_inset
+
+, 
+\begin_inset Formula $\sigma_{1}$
+\end_inset
+
+, 
+\begin_inset Formula $\sigma_{2}>0$
+\end_inset
+
+ and
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+A=\left(\begin{matrix}\alpha_{1} & \tfrac{\sigma_{1}}{\sigma_{2}}\alpha_{3}\\
+\tfrac{\sigma_{2}}{\sigma_{1}}\alpha_{3} & \alpha_{2}
+\end{matrix}\right),\quad\alpha_{1},\,\alpha_{2}>0\text{,}\,\alpha_{1}\alpha_{2}>\alpha_{3}^{2}.
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+With this formulation, the correlation between components is only captured
+ at the drift level by 
+\begin_inset Formula $\alpha_{3}$
+\end_inset
+
+ and this is reflected in the stationary covariance matrix:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\frac{1}{2}A^{-1}\Sigma=\frac{1}{2(\alpha_{1}\alpha_{2}-\alpha_{3}^{2})}\left(\begin{matrix}\alpha_{2}\sigma_{1}^{2} & -\alpha_{3}\sigma_{1}\sigma_{2}\\
+-\alpha_{3}\sigma_{1}\sigma_{2} & \alpha_{1}\sigma_{2}^{2}
+\end{matrix}\right).
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The computation of 
+\backslash
+eqref{eq:ptilde} in practise involves computing 
+\begin_inset Formula $e^{-tA}$
+\end_inset
+
+ and 
+\begin_inset Formula $\Gamma_{t}$
+\end_inset
+
+, which we can work out explicitly.
+ First, in virtue of 
+\backslash
+cite{Bernstein1993}, the exponential matrix of any 
+\begin_inset Formula $2\times2$
+\end_inset
+
+ matrix
+\begin_inset Formula $A$
+\end_inset
+
+ has the explicit expression 
+\begin_inset Formula $e^{tA}=a(t)I+b(t)A$
+\end_inset
+
+ with 
+\begin_inset Formula $a(t)=e^{rt}(\cosh(qt)-r\frac{\sinh(qt)}{q})$
+\end_inset
+
+, 
+\begin_inset Formula $b(t)=e^{rt}\frac{\sinh(qt)}{q}$
+\end_inset
+
+, 
+\begin_inset Formula $r=\tfrac{\mathrm{tr}(A)}{2}$
+\end_inset
+
+ , 
+\begin_inset Formula $q=\sqrt{|\det(A-rI)|}$
+\end_inset
+
+ and 
+\begin_inset Formula $I$
+\end_inset
+
+ the identity matrix.
+ Second, since 
+\begin_inset Formula $A^{-1}\Sigma$
+\end_inset
+
+ is constrained to be symmetric, the integral in 
+\begin_inset Formula $\Gamma_{t}$
+\end_inset
+
+ can be computed analytically.
+ Combining this two facts, we have 
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\Gamma_{t}=\tfrac{1}{2}A^{-1}(I-e^{-2At})\Sigma=s(t)\tfrac{1}{2}A^{-1}\Sigma+i(t)\Sigma,
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+with 
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $s(t)=1-a(-2t)$
+\end_inset
+
+, 
+\begin_inset Formula $i(t)=-\tfrac{1}{2}b(-2t)$
+\end_inset
+
+.
+ This gives
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ a neat linear combination of the stationary and infinitesimal covariance
+ matrices, particularly convenient for evaluating the approximating tpd
+ at different times as many computations can be reused.
+ The maximum likelihood estimates from a sample 
+\begin_inset Formula $\{(\phi_{1},\psi_{1},\phi_{2},\psi_{2},t)_{i}\}_{i=1}^{n}$
+\end_inset
+
+ are given by
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+(\hat{{\alpha_{1}}},\hat{{\alpha_{2}}},\hat{{\alpha_{3}}},\hat{{\mu_{1}}},\hat{{\mu_{2}}},\hat{{\sigma_{1}}},\hat{{\sigma_{2}}}){}_{\mathrm{MLE}}=\arg\max_{A,\mu,\Sigma}(\sum_{i=1}^{n}\log f_{\mathrm{WN}}((\phi_{1},\psi_{1})_{i};\mu,\tfrac{1}{2}A^{-1}\Sigma)+\sum_{i=1}^{n}\log\tilde{p}_{t_{i}}((\phi_{2},\psi_{2})_{i}\,|\,(\phi_{1},\psi_{1})_{i};A,\mu,\Sigma))
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+and can be obtained by CITE NLOPT METHOD USED.
+ COMPLETE MORE THIS PART.
 \end_layout
 
 \begin_layout Subsection
@@ -1621,7 +2088,7 @@ status open
 
 \begin_layout Plain Layout
 \align center
-\begin_inset Caption
+\begin_inset Caption Standard
 
 \begin_layout Plain Layout
 \begin_inset CommandInset label
@@ -1712,7 +2179,7 @@ d(\langle\phi_{a},\psi_{a}\rangle,\langle\phi_{b},\psi_{b}\rangle)=\sqrt{4-2\cos
 \end_layout
 
 \begin_layout Standard
-This can be justfied by noting that when 
+This can be justified by noting that when 
 \family roman
 \series medium
 \shape up
@@ -1780,7 +2247,7 @@ status open
 \end_layout
 
 \begin_layout Plain Layout
-\begin_inset Caption
+\begin_inset Caption Standard
 
 \begin_layout Plain Layout
 
@@ -1814,7 +2281,7 @@ status open
 \end_layout
 
 \begin_layout Plain Layout
-\begin_inset Caption
+\begin_inset Caption Standard
 
 \begin_layout Plain Layout
 
@@ -1848,7 +2315,7 @@ status open
 \end_layout
 
 \begin_layout Plain Layout
-\begin_inset Caption
+\begin_inset Caption Standard
 
 \begin_layout Plain Layout
 
